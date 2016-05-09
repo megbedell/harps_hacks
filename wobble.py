@@ -1,7 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from astropy.io import fits
 from scipy.optimize import curve_fit
+import pdb
 
 
 def read_ccfs(filename):
@@ -38,6 +40,9 @@ def read_ccfs(filename):
 
     return velocity, ccf
 
+def gauss_function(x, a, x0, sigma, offset):
+    return a*np.exp(-(x-x0)**2/(2*sigma**2)) + offset
+
 def plot_ccfs(velocity, ccf, file_out='all_ccfs.png'):
     '''Make a multipanel plot of all CCFs, order-by-order
 
@@ -55,17 +60,30 @@ def plot_ccfs(velocity, ccf, file_out='all_ccfs.png'):
     none
     '''
     fig = plt.figure(figsize=(5,20))
-    fig.subplots_adjust(bottom=0.025, left=0.025, top = 0.975, right=0.975)
-    
+    fig.subplots_adjust(bottom=0.025, left=0.025, top = 0.975, right=0.975, hspace=1.0)
+    majorLocator   = MultipleLocator(10)
+    minorLocator   = MultipleLocator(5)
+    j=1
     for i in np.arange(72):
+        # skip the bad orders
+        if i in [71, 66, 57]:
+            continue
         # plot the CCF for this order
-        plt.subplot(18,4,i+1)
-        plt.plot(velocity[i,:],ccf[i,:])
-        plt.xticks([-10.0,0.0,10.0,20.0]), plt.yticks([])
-        plt.tick_params(labelsize=7)
-        # find the central value and mark it
-    
-    fig.savefig(file_out)
+        ax = fig.add_subplot(18,4,j)
+        j += 1
+        ax.plot(velocity[i],ccf[i])
+        ax.yaxis.set_ticks([])
+        ax.xaxis.set_major_locator(majorLocator)
+        ax.xaxis.set_minor_locator(minorLocator)
+        ax.tick_params(labelsize=7, length=3)
+        # find the central value and mark it        
+        popt, pcov = curve_fit(gauss_function, velocity[i], ccf[i], p0 = [(min(ccf[i]) - max(ccf[i])), 7.0, 3.0, max(ccf[i])])
+        rv = popt[1]
+        ax.axvline(rv, color='black', linestyle='--')
+        ax.set_title('Order {0}\nRV {1:.2f} km/s'.format(i+1, rv), fontsize=7)
+
+        
+    fig.savefig(file_out, dpi=300)
 
 
 
