@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from astropy.io import fits
+from scipy.optimize import curve_fit
 
 
 def read_ccfs(filename):
@@ -16,7 +17,7 @@ def read_ccfs(filename):
     velocity : np.ndarray
     velocity (in km/s)
     ccf : np.ndarray
-    normalized ccf value
+    ccf value
     '''
     sp = fits.open(filename)
     header = sp[0].header
@@ -45,7 +46,7 @@ def plot_ccfs(velocity, ccf, file_out='all_ccfs.png'):
     velocity : np.ndarray
     velocity (in km/s)
     ccf : np.ndarray
-    normalized ccf value
+    ccf value
     file_out : string (optional keyword)
     name for the output plot; default- 'all_ccfs.png'
 
@@ -53,6 +54,18 @@ def plot_ccfs(velocity, ccf, file_out='all_ccfs.png'):
     -------
     none
     '''
+    fig = plt.figure(figsize=(5,20))
+    fig.subplots_adjust(bottom=0.025, left=0.025, top = 0.975, right=0.975)
+    
+    for i in np.arange(72):
+        # plot the CCF for this order
+        plt.subplot(18,4,i+1)
+        plt.plot(velocity[i,:],ccf[i,:])
+        plt.xticks([-10.0,0.0,10.0,20.0]), plt.yticks([])
+        plt.tick_params(labelsize=7)
+        # find the central value and mark it
+    
+    fig.savefig(file_out)
 
 
 
