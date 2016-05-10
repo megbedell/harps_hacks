@@ -65,14 +65,14 @@ def plot_ccfs(velocity, ccf, pipeline_rv, file_out='all_ccfs.png'):
     none
     '''
     # set up the figure
-    fig = plt.figure(figsize=(5,20))
-    fig.subplots_adjust(bottom=0.03, left=0.025, top = 0.975, right=0.975, hspace=1.0)
+    fig = plt.figure(figsize=(8,20))
+    fig.subplots_adjust(bottom=0.03, left=0.025, top = 0.975, right=0.975, hspace=0.5)
     majorLocator   = MultipleLocator(10)
     minorLocator   = MultipleLocator(5)
     # step through CCF orders
     ccf_rv = np.array([])
     j=1
-    for i in np.arange(72):
+    for i in np.arange(73):
         # skip the bad orders
         if i in [71, 66, 57]:
             continue
@@ -80,29 +80,22 @@ def plot_ccfs(velocity, ccf, pipeline_rv, file_out='all_ccfs.png'):
         ax = fig.add_subplot(14,5,j)
         j += 1
         ax.plot(velocity[i],ccf[i])
+        height = max(ccf[i]) - min(ccf[i])
+        plt.ylim(min(ccf[i]) - height*0.1, max(ccf[i]) + height*0.1)
         ax.yaxis.set_ticks([])
         ax.xaxis.set_major_locator(majorLocator)
         ax.xaxis.set_minor_locator(minorLocator)
-        ax.tick_params(labelsize=7, length=3)
+        ax.tick_params(labelsize=6, length=3)
         # find the central value and mark it        
-        popt, pcov = curve_fit(gauss_function, velocity[i], ccf[i], p0 = [(min(ccf[i]) - max(ccf[i])), np.median(velocity[i]), 3.0, max(ccf[i])])
+        popt, pcov = curve_fit(gauss_function, velocity[i], ccf[i], p0 = [-height, np.median(velocity[i]), 3.0, max(ccf[i])])
         ccf_rv = np.append(ccf_rv,popt[1])
         ax.axvline(pipeline_rv, color='red', linestyle='-', linewidth=0.3)
         ax.axvline(ccf_rv[-1], color='blue', linestyle='--', linewidth=0.3)
+        # add labels
+        if i == 72:
+            ax.set_title('HARPS Combined CCF\nRV {0:.5f} km/s'.format(ccf_rv[-1]), fontsize=7)
+            continue
         ax.set_title('Order {0}\nRV {1:.3f} km/s'.format(i+1, ccf_rv[-1]), fontsize=7)
-    # plot the HARPS pipeline combined CCF
-    ax = fig.add_subplot(14,5,70)
-    ax.plot(velocity[-1],ccf[-1])
-    ax.yaxis.set_ticks([])
-    ax.xaxis.set_major_locator(majorLocator)
-    ax.xaxis.set_minor_locator(minorLocator)
-    ax.tick_params(labelsize=7, length=3)
-    # find the central value and mark it        
-    popt, pcov = curve_fit(gauss_function, velocity[-1], ccf[-1], p0 = [(min(ccf[-1]) - max(ccf[-1])), np.median(velocity[-1]), 3.0, max(ccf[-1])])
-    rv_combined = popt[1]
-    ax.axvline(pipeline_rv, color='red', linestyle='-', linewidth=0.3)
-    ax.axvline(rv_combined, color='blue', linestyle='--', linewidth=0.3)
-    ax.set_title('HARPS Combined CCF\nRV {1:.5f} km/s'.format(i+1, rv_combined), fontsize=7)
     
     plt.figtext(0.5,0.01,'Pipeline RV = {0:.5f} km/s'.format(pipeline_rv), horizontalalignment='center', color='red')
     
