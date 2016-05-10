@@ -46,7 +46,7 @@ def read_ccfs(filename):
 def gauss_function(x, a, x0, sigma, offset):
     return a*np.exp(-(x-x0)**2/(2*sigma**2)) + offset
 
-def plot_ccfs(velocity, ccf, pipeline_rv, file_out='all_ccfs.png'):
+def plot_ccfs(velocity, ccf, pipeline_rv, file_out='all_ccfs.png', calc_sum=False):
     '''Make a multipanel plot of all CCFs, order-by-order
 
     Parameters
@@ -59,6 +59,8 @@ def plot_ccfs(velocity, ccf, pipeline_rv, file_out='all_ccfs.png'):
     the HARPS-determined RV from the FITS header (km/s)
     file_out : string (optional keyword)
     name for the output plot; default- 'all_ccfs.png'
+    calc_sum : boolean (optional keyword)
+    if True, the co-added CCF from all orders is calculated
 
     Returns
     -------
@@ -97,6 +99,20 @@ def plot_ccfs(velocity, ccf, pipeline_rv, file_out='all_ccfs.png'):
             continue
         ax.set_title('Order {0}\nRV {1:.3f} km/s'.format(i+1, ccf_rv[-1]), fontsize=7)
     
+    
+    if calc_sum:
+        # overplot the actual co-added CCF on the final panel & write out the RV that gives
+        # (in principle this should be the same as the final 'order' from the pipeline,
+        #  but HARPS pipeline apparently excludes the first order when making co-added CCF.)
+        ccf_sum = np.sum(ccf[:-1,:], axis=0)
+        ax.plot(velocity[-1],ccf_sum,color='green')
+        height = max(ccf_sum) - min(ccf_sum)
+        popt, pcov = curve_fit(gauss_function, velocity[-1], ccf_sum, p0 = [-height, np.median(velocity[-1]), 3.0, max(ccf_sum)])
+        ccf_sum_rv = popt[1]
+        ax.axvline(ccf_sum_rv, color='green', linestyle='--', linewidth=0.3)
+        ax.set_title('Co-added CCF\nRV {0:.5f} km/s'.format(ccf_sum_rv), fontsize=7)
+
+        
     plt.figtext(0.5,0.01,'Pipeline RV = {0:.5f} km/s'.format(pipeline_rv), horizontalalignment='center', color='red')
     
     fig.savefig(file_out, dpi=400)
@@ -105,6 +121,8 @@ def plot_ccfs(velocity, ccf, pipeline_rv, file_out='all_ccfs.png'):
 
 if __name__ == "__main__":
     
-    file_in = "/Users/mbedell/Documents/Research/HARPSTwins/Data/Reduced/2011-10-11/HARPS.2011-10-12T07:19:35.401_ccf_G2_A.fits"
-    velocity, ccf, rv = read_ccfs(file_in)
+    data_dir = "/Users/mbedell/Documents/Research/HARPSTwins/Data/Reduced/"
+    #file_in = "2011-10-11/HARPS.2011-10-12T07:19:35.401_ccf_G2_A.fits"
+    file_in = "2015-01-05/HARPS.2015-01-06T06:15:11.910_ccf_G2_A.fits"
+    velocity, ccf, rv = read_ccfs(data_dir+file_in)
     plot_ccfs(velocity, ccf, rv, file_out='all_ccfs.png')
