@@ -177,11 +177,20 @@ if __name__ == "__main__":
     
     data_dir = "/Users/mbedell/Documents/Research/HARPSTwins/Results/"
     s = readsav(data_dir+'HIP54287_result.dat')
-    file_in = s.files[0]
-    velocity, ccf, pipeline_rv = read_ccfs(file_in)
-    order_rvs = rv_parabola_fit(velocity, ccf)
+    order_rvs_all = np.zeros((len(s.files), 73))
+    for i in np.arange(len(s.files)):
+        velocity, ccf, pipeline_rv = read_ccfs(s.files[i])
+        order_rvs = rv_parabola_fit(velocity, ccf)
+        rv[i] = np.nanmedian(order_rvs[0:-1])  
+        order_rvs_all[i,:] = order_rvs
+
+    rv = np.nanmedian(order_rvs_all[:,:-1], axis=1) # median of every order (excluding the co-added one)
+    print "pipeline's RV RMS = {0:.2f} m/s".format(np.std(s.rv)*1.0e3)
+    print "parabola-fit RV RMS = {0:.2f} m/s".format(np.std(rv)*1.0e3)
     
-    plot_ccfs(velocity, ccf, pipeline_rv, order_rvs, file_out='all_ccfs.png')
+    
+
+    #plot_ccfs(velocity, ccf, pipeline_rv, order_rvs, file_out='all_ccfs.png')
     
     
     
