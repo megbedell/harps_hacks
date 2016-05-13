@@ -6,6 +6,7 @@ from scipy.optimize import curve_fit
 import pdb
 from scipy.io.idl import readsav
 import astropy.time
+import datetime
 
 
 def read_ccfs(filename):
@@ -171,7 +172,19 @@ def rv_parabola_fit(velocity, ccf):
         y = ccf[i][ind_min-1:ind_min+2]
         order_rvs[i] = parabola_min(x,y)  # find the RV minimum using parabolic interpolation
     return order_rvs
-        
+
+def plot_timeseries(time,rv,rv_err,rv2=0):
+    '''Plot RV timeseries (probably delete this later)
+    '''
+    t = astropy.time.Time(time, format='jd')
+    rv = (rv - np.median(rv))*1.0e3
+    plt.errorbar(t.datetime, rv, yerr=rv_err*1.0e3, fmt='o')
+    if (len(rv2) == len(time)):
+        rv2 = (rv2 - np.median(rv2))*1.0e3
+        plt.errorbar(t.datetime, rv2, yerr=rv_err*1.0e3, fmt='o', color='red', ecolor='red')
+    plt.ylabel('RV (m/s)')
+    plt.xlim(t.datetime[0]-datetime.timedelta(days=100), t.datetime[-1]+datetime.timedelta(days=100))
+    plt.show()   
 
 if __name__ == "__main__":
     
@@ -181,16 +194,13 @@ if __name__ == "__main__":
     for i in np.arange(len(s.files)):
         velocity, ccf, pipeline_rv = read_ccfs(s.files[i])
         order_rvs = rv_parabola_fit(velocity, ccf)
-        rv[i] = np.nanmedian(order_rvs[0:-1])  
         order_rvs_all[i,:] = order_rvs
 
     rv = np.nanmedian(order_rvs_all[:,:-1], axis=1) # median of every order (excluding the co-added one)
     print "pipeline's RV RMS = {0:.2f} m/s".format(np.std(s.rv)*1.0e3)
     print "parabola-fit RV RMS = {0:.2f} m/s".format(np.std(rv)*1.0e3)
     
-    
-
-    #plot_ccfs(velocity, ccf, pipeline_rv, order_rvs, file_out='all_ccfs.png')
-    
+    plot_timeseries(s.date, rv, s.sig, rv2=s.rv)
+        
     
     
