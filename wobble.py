@@ -4,6 +4,8 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from astropy.io import fits
 from scipy.optimize import curve_fit
 import pdb
+from scipy.io.idl import readsav
+import astropy.time
 
 
 def read_ccfs(filename):
@@ -20,6 +22,8 @@ def read_ccfs(filename):
     velocity (in km/s)
     ccf : np.ndarray
     ccf value
+    rv : float
+    the pipeline-delivered RV **without drift correction applied** (in km/s)
     '''
     sp = fits.open(filename)
     header = sp[0].header
@@ -44,9 +48,29 @@ def read_ccfs(filename):
     return velocity, ccf, rv
 
 def gauss_function(x, a, x0, sigma, offset):
+    '''it's a Gaussian.'''
     return a*np.exp(-(x-x0)**2/(2*sigma**2)) + offset
 
-def plot_ccfs(velocity, ccf, pipeline_rv, file_out='all_ccfs.png', calc_sum=False):
+def parabola_min(x, y):
+    '''Take three data points (x,y), fit a parabola, and return the minimum
+    
+    Parameters
+    ----------
+    x : np.ndarray, len = 3
+    y : np.ndarray, len = 3
+    
+    Returns
+    -------
+    x_min : float
+    location of the parabola minimum
+    '''
+    M = np.vstack([x**2, x, np.ones(len(x))]).T
+    a,b,c = np.linalg.solve(M, y)
+    x_min = -b/(2.0*a)
+    return x_min
+    
+
+def plot_ccfs(velocity, ccf, pipeline_rv, custom_rvs, file_out='all_ccfs.png', calc_sum=False):
     '''Make a multipanel plot of all CCFs, order-by-order
 
     Parameters
@@ -57,6 +81,8 @@ def plot_ccfs(velocity, ccf, pipeline_rv, file_out='all_ccfs.png', calc_sum=Fals
     ccf value
     pipeline_rv : float
     the HARPS-determined RV from the FITS header (km/s)
+    custom_rvs : np.ndarray
+    custom-determined RVs for each order (km/s)
     file_out : string (optional keyword)
     name for the output plot; default- 'all_ccfs.png'
     calc_sum : boolean (optional keyword)
@@ -93,6 +119,7 @@ def plot_ccfs(velocity, ccf, pipeline_rv, file_out='all_ccfs.png', calc_sum=Fals
         ccf_rv = np.append(ccf_rv,popt[1])
         ax.axvline(pipeline_rv, color='red', linestyle='-', linewidth=0.3)
         ax.axvline(ccf_rv[-1], color='blue', linestyle='--', linewidth=0.3)
+        ax.axvline(custom_rvs[i], color='green', linestyle='--', linewidth=0.3)
         # add labels
         if i == 72:
             ax.set_title('HARPS Combined CCF\nRV {0:.5f} km/s'.format(ccf_rv[-1]), fontsize=7)
@@ -119,10 +146,42 @@ def plot_ccfs(velocity, ccf, pipeline_rv, file_out='all_ccfs.png', calc_sum=Fals
 
 
 
+def rv_parabola_fit(velocity, ccf):
+    '''Read in the pipeline CCF data product and return polynomial-fitted RV for each order
+    
+    Parameters
+    ----------
+    velocity : np.ndarray
+    velocity (in km/s)
+    ccf : np.ndarray
+    ccf value
+
+    Returns
+    -------
+    order_rvs : np.ndarray
+    the RV minimum of each order's ccf (km/s)
+    '''
+    order_rvs = np.zeros(ccf.shape[0])
+    for i in np.arange(ccf.shape[0]):
+        if i in [71, 66, 57]:  # disregard the bad orders
+            order_rvs[i] = np.nan
+            continue
+        ind_min = np.argmin(ccf[i])
+        x = velocity[i][ind_min-1:ind_min+2]  # select just the nearest 3 pts to fit
+        y = ccf[i][ind_min-1:ind_min+2]
+        order_rvs[i] = parabola_min(x,y)  # find the RV minimum using parabolic interpolation
+    return order_rvs
+        
+
 if __name__ == "__main__":
     
-    data_dir = "/Users/mbedell/Documents/Research/HARPSTwins/Data/Reduced/"
-    #file_in = "2011-10-11/HARPS.2011-10-12T07:19:35.401_ccf_G2_A.fits"
-    file_in = "2015-01-05/HARPS.2015-01-06T06:15:11.910_ccf_G2_A.fits"
-    velocity, ccf, rv = read_ccfs(data_dir+file_in)
-    plot_ccfs(velocity, ccf, rv, file_out='all_ccfs.png')
+    data_dir = "/Users/mbedell/Documents/Research/HARPSTwins/Results/"
+    s = readsav(data_dir+'HIP54287_result.dat')
+    file_in = s.files[0]
+    velocity, ccf, pipeline_rv = read_ccfs(file_in)
+    order_rvs = rv_parabola_fit(velocity, ccf)
+    
+    plot_ccfs(velocity, ccf, pipeline_rv, order_rvs, file_out='all_ccfs.png')
+    
+    
+    
