@@ -172,6 +172,31 @@ def rv_parabola_fit(velocity, ccf):
         y = ccf[i][ind_min-1:ind_min+2]
         order_rvs[i] = parabola_min(x,y)  # find the RV minimum using parabolic interpolation
     return order_rvs
+    
+def rv_gaussian_fit(velocity, ccf):
+    '''Read in the pipeline CCF data product and return Gaussian-fitted RV for each order
+    
+    Parameters
+    ----------
+    velocity : np.ndarray
+    velocity (in km/s)
+    ccf : np.ndarray
+    ccf value
+
+    Returns
+    -------
+    order_rvs : np.ndarray
+    the RV minimum of each order's ccf (km/s)
+    '''
+    order_rvs = np.zeros(ccf.shape[0])
+    for i in np.arange(ccf.shape[0]):
+        if i in [71, 66, 57]:  # disregard the bad orders
+            order_rvs[i] = np.nan
+            continue
+        height = max(ccf[i]) - min(ccf[i])
+        popt, pcov = curve_fit(gauss_function, velocity[i], ccf[i], p0 = [-height, np.median(velocity[i]), 3.0, max(ccf[i])])
+        order_rvs[i] = popt[1]
+    return order_rvs
 
 def plot_timeseries(time,rv,rv_err,rv2=0):
     '''Plot RV timeseries (probably delete this later)
@@ -190,15 +215,20 @@ if __name__ == "__main__":
     
     data_dir = "/Users/mbedell/Documents/Research/HARPSTwins/Results/"
     s = readsav(data_dir+'HIP54287_result.dat')
-    order_rvs_all = np.zeros((len(s.files), 73))
+    order_rvs_parabola = np.zeros((len(s.files), 73))
+    order_rvs_gaussian = np.zeros((len(s.files), 73))
+    pipeline_rv = np.zeros(len(s.files))
     for i in np.arange(len(s.files)):
-        velocity, ccf, pipeline_rv = read_ccfs(s.files[i])
+        velocity, ccf, pipeline_rv[i] = read_ccfs(s.files[i])
         order_rvs = rv_parabola_fit(velocity, ccf)
-        order_rvs_all[i,:] = order_rvs
+        order_rvs_parabola[i,:] = order_rvs
+        order_rvs = rv_gaussian_fit(velocity, ccf)
+        order_rvs_gaussian[i,:] = order_rvs
 
-    rv = np.nanmedian(order_rvs_all[:,:-1], axis=1) # median of every order (excluding the co-added one)
+    rv = np.nanmedian(order_rvs_parabola[:,:-1], axis=1) # median of every order (excluding the co-added one)
     print "pipeline's RV RMS = {0:.2f} m/s".format(np.std(s.rv)*1.0e3)
     print "parabola-fit RV RMS = {0:.2f} m/s".format(np.std(rv)*1.0e3)
+    pdb.set_trace()
     
     plot_timeseries(s.date, rv, s.sig, rv2=s.rv)
         
