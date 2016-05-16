@@ -45,7 +45,7 @@ def read_ccfs(filename):
     
     # get the header RV
     rv = header['HIERARCH ESO DRS CCF RV']
-
+    
     return velocity, ccf, rv
 
 def gauss_function(x, a, x0, sigma, offset):
@@ -173,7 +173,7 @@ def rv_parabola_fit(velocity, ccf):
         order_rvs[i] = parabola_min(x,y)  # find the RV minimum using parabolic interpolation
     return order_rvs
     
-def rv_gaussian_fit(velocity, ccf):
+def rv_gaussian_fit(velocity, ccf, n_points=80, debug=False):
     '''Read in the pipeline CCF data product and return Gaussian-fitted RV for each order
     
     Parameters
@@ -182,20 +182,41 @@ def rv_gaussian_fit(velocity, ccf):
     velocity (in km/s)
     ccf : np.ndarray
     ccf value
+    n_points : total number of points on either side of the minimum to fit
 
     Returns
     -------
     order_rvs : np.ndarray
     the RV minimum of each order's ccf (km/s)
     '''
+    if (n_points < 1):
+        print "Cannot fit a Gaussian to < 4 points! Try n_points = 2"
+        return None
     order_rvs = np.zeros(ccf.shape[0])
     for i in np.arange(ccf.shape[0]):
         if i in [71, 66, 57]:  # disregard the bad orders
             order_rvs[i] = np.nan
             continue
+        ind_min = np.argmin(ccf[i])
+        ind_range = np.arange(n_points*2+1) + ind_min - n_points
+        if (ind_range > 160).any() or (ind_range < 0).any():
+            print "n_points too large, defaulting to all"
+            ind_range = np.arange(161)
         height = max(ccf[i]) - min(ccf[i])
-        popt, pcov = curve_fit(gauss_function, velocity[i], ccf[i], p0 = [-height, np.median(velocity[i]), 3.0, max(ccf[i])])
+        p0 = [-height, velocity[i,ind_min], 3.0, max(ccf[i])]
+        if debug:
+            print "order index {0}".format(i)
+            print "starting param",p0
+        popt, pcov = curve_fit(gauss_function, velocity[i,ind_range], ccf[i,ind_range], p0=p0, maxfev=10000)
         order_rvs[i] = popt[1]
+        if debug:
+            print "solution param",popt
+            plt.scatter(velocity[i],ccf[i],color='blue')
+            plt.scatter(velocity[i,ind_range],ccf[i,ind_range],color='red')
+            x = np.arange(10000)/100.0 + velocity[i,0]
+            plt.plot(x, gauss_function(x,popt[0],popt[1],popt[2],popt[3]))
+            plt.ylim(min(ccf[i])-500,max(ccf[i]))
+            plt.show()
     return order_rvs
 
 def plot_timeseries(time,rv,rv_err,rv2=0):
@@ -214,23 +235,38 @@ def plot_timeseries(time,rv,rv_err,rv2=0):
 if __name__ == "__main__":
     
     data_dir = "/Users/mbedell/Documents/Research/HARPSTwins/Results/"
-    s = readsav(data_dir+'HIP54287_result.dat')
-    order_rvs_parabola = np.zeros((len(s.files), 73))
-    order_rvs_gaussian = np.zeros((len(s.files), 73))
+    s = readsav(data_dir+'HIP54287_result.dat') 
+ 
+    n_points = np.arange(2,80)
+    order_rvs_gaussian = np.zeros((len(n_points),len(s.files), 73))
     pipeline_rv = np.zeros(len(s.files))
     for i in np.arange(len(s.files)):
         velocity, ccf, pipeline_rv[i] = read_ccfs(s.files[i])
-        order_rvs = rv_parabola_fit(velocity, ccf)
-        order_rvs_parabola[i,:] = order_rvs
-        order_rvs = rv_gaussian_fit(velocity, ccf)
-        order_rvs_gaussian[i,:] = order_rvs
-
-    rv = np.nanmedian(order_rvs_parabola[:,:-1], axis=1) # median of every order (excluding the co-added one)
+        for j in np.arange(len(n_points)):
+            order_rvs = rv_gaussian_fit(velocity, ccf, n_points=n_points[j])
+            order_rvs_gaussian[j,i,:] = order_rvs
+        print "file {0} of {1} finished".format(i+1,len(s.files))
+            
+    rv = np.nanmedian(order_rvs_gaussian[:,:,:-1], axis=2) # median of every order (excluding the co-added one)
     print "pipeline's RV RMS = {0:.2f} m/s".format(np.std(s.rv)*1.0e3)
-    print "parabola-fit RV RMS = {0:.2f} m/s".format(np.std(rv)*1.0e3)
-    pdb.set_trace()
+    plt.scatter(n_points, np.std(rv, axis=1)*1.0e3)
+    plt.plot(n_points, np.zeros_like(n_points)+np.std(s.rv)*1.0e3, color='red')
+    plt.title("Median of orders")
+    plt.ylabel("RV RMS (m/s)")
+    plt.xlabel("# points used on either side of minimum")
+    plt.xlim(0,80)
+    plt.savefig('gaussian_median.png')
+    plt.clf()
     
-    plot_timeseries(s.date, rv, s.sig, rv2=s.rv)
+    plt.scatter(n_points,np.std(order_rvs_gaussian[:,:,-1],axis=1)*1.0e3)
+    plt.plot(n_points, np.zeros_like(n_points)+np.std(s.rv)*1.0e3, color='red')
+    plt.title("Co-added CCF")
+    plt.ylabel("RV RMS (m/s)")
+    plt.xlabel("# points used on either side of minimum")
+    plt.xlim(0,80)
+    plt.savefig('gaussian_coadded.png')
+    plt.clf()
+    
         
     
     
