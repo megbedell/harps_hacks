@@ -45,7 +45,7 @@ def read_ccfs(filename):
     
     # get the header RV
     rv = header['HIERARCH ESO DRS CCF RV']
-    
+        
     return velocity, ccf, rv
 
 def gauss_function(x, a, x0, sigma, offset):
@@ -173,7 +173,7 @@ def rv_parabola_fit(velocity, ccf):
         order_rvs[i] = parabola_min(x,y)  # find the RV minimum using parabolic interpolation
     return order_rvs
     
-def rv_gaussian_fit(velocity, ccf, n_points=80, debug=False):
+def rv_gaussian_fit(velocity, ccf, n_points=20, debug=False):
     '''Read in the pipeline CCF data product and return Gaussian-fitted RV for each order
     
     Parameters
@@ -257,34 +257,33 @@ if __name__ == "__main__":
     print "abs(a) weighted RV RMS = {0:.2f} m/s".format(np.std(rv_aweight)*1.0e3)
     print "a^2 weighted RV RMS = {0:.2f} m/s".format(np.std(rv_a2weight)*1.0e3)
     
-    #plot it
-    t = astropy.time.Time(s.date, format='jd')
-    rv_err = s.sig
-    plt.errorbar(t.datetime, (s.rv - s.rv[0])*1.0e3, yerr=rv_err*1.0e3, fmt='o',color='blue',label='pipeline RV')
-    plt.errorbar(t.datetime, (rv_aweight - rv_aweight[0])*1.0e3, yerr=rv_err*1.0e3, fmt='o',color='red',ecolor='red',label='abs(a) weighted')
-    plt.errorbar(t.datetime, (rv_a2weight - rv_a2weight[0])*1.0e3, yerr=rv_err*1.0e3, fmt='o',color='green',ecolor='green',label=r'a$^2$ weighted')
-    plt.legend(loc='upper center')
-    plt.ylabel('RV (m/s)')
-    plt.xlim(t.datetime[0]-datetime.timedelta(days=100), t.datetime[-1]+datetime.timedelta(days=100))
-    #plt.show()  
-    plt.clf()  
+    #PCA!
+    a = np.reshape(np.ma.compressed(masked_par),(48,69,4))
+    a_rvonly = a[:,:,1]
+    a_rvonly -= np.repeat([np.mean(a_rvonly,axis=1)],69,axis=0).T  #subtract off the mean value from each order time series
+    a_all = np.reshape(a,(48,-1))
+    u,s,v = np.linalg.svd(a_rvonly, full_matrices=False)
     
-    #plot order stats
-    for i,par in enumerate(['amplitude','mean_RV','sigma_RV','vertical_offset']):
-        order_var = np.nanvar(order_time_par[:,:-1,i],axis=0)
-        plt.errorbar(np.arange(72), np.mean(order_time_par[:,:-1,i],axis=0), yerr=np.sqrt(order_var), label='Mean', fmt='o')
-        plt.scatter(np.arange(72), np.median(order_time_par[:,:-1,i],axis=0), label='Median', color='red')
-        #plt.scatter(np.arange(72), order_var, label='Variance', color='green')
-        plt.ylabel(par)
-        plt.xlabel("Order #")  
-        plt.legend(loc='upper center')
-        #if par in ['amplitude','vertical_offset']:
-        #    ax = plt.gca()
-        #    ax.yaxis.set_major_formatter(FormatStrFormatter('%.2E'))
-        plt.savefig(par+'_per_order.png')
-        plt.clf()  
+    #plot some eigenvalues:
+    plt.scatter(np.arange(48),s**2)
+    plt.title('Eigenvalues')
+    plt.xlim(-1,50)
+    plt.yscale('log')
+    plt.ylim(0.0001,10.0)
+    plt.savefig('eigenvalues.png')
+    plt.clf()
+    
+    #plot some eigenvectors:
+    plt.plot(v[0,:],color='red')
+    plt.plot(v[1,:],color='orange')
+    plt.plot(v[2,:],color='green')
+    plt.plot(v[3,:],color='blue')
+    plt.plot(v[4,:],color='purple')
+    plt.xlabel('Order #')
+    plt.ylabel(r'$\Delta$ velocity (km/s)')
+    plt.title('Eigenvectors')
+    plt.savefig('eigenvectors.png')
+    plt.clf()
 
-    
-        
     
     
