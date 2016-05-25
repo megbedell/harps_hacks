@@ -187,16 +187,16 @@ def rv_gaussian_fit(velocity, ccf, n_points=80, debug=False):
 
     Returns
     -------
-    order_rvs : np.ndarray
-    the RV minimum of each order's ccf (km/s)
+    order_par : np.ndarray
+    best-fit Gaussian parameters for each order: (amplitude, mean, sigma, offset)
     '''
     if (n_points < 1):
         print "Cannot fit a Gaussian to < 4 points! Try n_points = 2"
         return None
-    order_rvs = np.zeros(ccf.shape[0])
+    order_par = np.zeros((ccf.shape[0],4))
     for i,order in enumerate(ccf):
         if i in [71, 66, 57]:  # disregard the bad orders
-            order_rvs[i] = np.nan
+            order_par[i,:] = np.nan
             continue
         ind_min = np.argmin(order)
         ind_range = np.arange(n_points*2+1) + ind_min - n_points
@@ -209,7 +209,7 @@ def rv_gaussian_fit(velocity, ccf, n_points=80, debug=False):
             print "order index {0}".format(i)
             print "starting param",p0
         popt, pcov = curve_fit(gauss_function, velocity[i,ind_range], order[ind_range], p0=p0, maxfev=10000)
-        order_rvs[i] = popt[1]
+        order_par[i,:] = popt
         if debug:
             print "solution param",popt
             plt.scatter(velocity[i],order,color='blue')
@@ -218,7 +218,7 @@ def rv_gaussian_fit(velocity, ccf, n_points=80, debug=False):
             plt.plot(x, gauss_function(x,popt[0],popt[1],popt[2],popt[3]))
             plt.ylim(min(ccf[i])-500,max(order))
             plt.show()
-    return order_rvs
+    return order_par
 
 def plot_timeseries(time,rv,rv_err,rv2=0):
     '''Plot RV timeseries (probably delete this later)
@@ -238,37 +238,52 @@ if __name__ == "__main__":
     data_dir = "/Users/mbedell/Documents/Research/HARPSTwins/Results/"
     s = readsav(data_dir+'HIP54287_result.dat') 
  
-    n_points = np.arange(2,80)
-    order_rvs_gaussian = np.zeros((len(n_points),len(s.files), 73))
+    order_time_par = np.zeros((len(s.files), 73, 4))
     pipeline_rv = np.zeros(len(s.files))
     for i,f in enumerate(s.files):
         velocity, ccf, pipeline_rv[i] = read_ccfs(f)
-        for j in xrange(len(n_points)):
-            order_rvs = rv_gaussian_fit(velocity, ccf, n_points=n_points[j])
-            order_rvs_gaussian[j,i,:] = order_rvs
-        print "file {0} of {1} finished".format(i+1,len(s.files))
+        order_par = rv_gaussian_fit(velocity, ccf, n_points=20) # chose n_points=20 from the median order RMS plot sent to Hogg on May 13 
+        order_time_par[i,:,:] = order_par
+        #print "file {0} of {1} finished".format(i+1,len(s.files))
             
-    rv = np.nanmedian(order_rvs_gaussian[:,:,:-1], axis=2) # median of every order (excluding the co-added one)
+    rv = np.nanmedian(order_time_par[:,:-1,1], axis=1) # median of every order RV (excluding the co-added one)
     print "pipeline's RV RMS = {0:.2f} m/s".format(np.std(s.rv)*1.0e3)
-    plt.scatter(n_points, np.std(rv, axis=1)*1.0e3)
-    plt.plot(n_points, np.zeros_like(n_points)+np.std(s.rv)*1.0e3, color='red')
-    plt.title("Median of orders")
-    plt.ylabel("RV RMS (m/s)")
-    plt.xlabel("# points used on either side of minimum")
-    plt.xlim(0,80)
-    plt.savefig('gaussian_median.png')
-    plt.clf()
     
-    plt.scatter(n_points,np.std(order_rvs_gaussian[:,:,-1],axis=1)*1.0e3)
-    plt.plot(n_points, np.zeros_like(n_points)+np.std(s.rv)*1.0e3, color='red')
-    plt.title("Co-added CCF")
-    plt.ylabel("RV RMS (m/s)")
-    plt.xlabel("# points used on either side of minimum")
-    plt.xlim(0,80)
-    plt.savefig('gaussian_coadded.png')
-    plt.clf()
     
-    pdb.set_trace()
+    #try weighted means
+    masked_par = np.ma.masked_invalid(order_time_par[:,:-1,:])
+    rv_aweight = np.ma.average(masked_par[:,:,1], weights=abs(masked_par[:,:,0]), axis=1)
+    rv_a2weight = np.ma.average(masked_par[:,:,1], weights=(masked_par[:,:,0])**2, axis=1)
+    print "abs(a) weighted RV RMS = {0:.2f} m/s".format(np.std(rv_aweight)*1.0e3)
+    print "a^2 weighted RV RMS = {0:.2f} m/s".format(np.std(rv_a2weight)*1.0e3)
+    
+    #plot it
+    t = astropy.time.Time(s.date, format='jd')
+    rv_err = s.sig
+    plt.errorbar(t.datetime, (s.rv - s.rv[0])*1.0e3, yerr=rv_err*1.0e3, fmt='o',color='blue',label='pipeline RV')
+    plt.errorbar(t.datetime, (rv_aweight - rv_aweight[0])*1.0e3, yerr=rv_err*1.0e3, fmt='o',color='red',ecolor='red',label='abs(a) weighted')
+    plt.errorbar(t.datetime, (rv_a2weight - rv_a2weight[0])*1.0e3, yerr=rv_err*1.0e3, fmt='o',color='green',ecolor='green',label=r'a$^2$ weighted')
+    plt.legend(loc='upper center')
+    plt.ylabel('RV (m/s)')
+    plt.xlim(t.datetime[0]-datetime.timedelta(days=100), t.datetime[-1]+datetime.timedelta(days=100))
+    #plt.show()  
+    plt.clf()  
+    
+    #plot order stats
+    for i,par in enumerate(['amplitude','mean_RV','sigma_RV','vertical_offset']):
+        order_var = np.nanvar(order_time_par[:,:-1,i],axis=0)
+        plt.errorbar(np.arange(72), np.mean(order_time_par[:,:-1,i],axis=0), yerr=np.sqrt(order_var), label='Mean', fmt='o')
+        plt.scatter(np.arange(72), np.median(order_time_par[:,:-1,i],axis=0), label='Median', color='red')
+        #plt.scatter(np.arange(72), order_var, label='Variance', color='green')
+        plt.ylabel(par)
+        plt.xlabel("Order #")  
+        plt.legend(loc='upper center')
+        #if par in ['amplitude','vertical_offset']:
+        #    ax = plt.gca()
+        #    ax.yaxis.set_major_formatter(FormatStrFormatter('%.2E'))
+        plt.savefig(par+'_per_order.png')
+        plt.clf()  
+
     
         
     
