@@ -258,21 +258,23 @@ if __name__ == "__main__":
     print "a^2 weighted RV RMS = {0:.2f} m/s".format(np.std(rv_a2weight)*1.0e3)
     
     #PCA!
-    a = np.reshape(np.ma.compressed(masked_par),(48,69,4))
-    a_rvonly = a[:,:,1]
-    a_rvonly -= np.repeat([np.mean(a_rvonly,axis=1)],69,axis=0).T  #subtract off the mean value from each order time series
-    a_all = np.reshape(a,(48,-1))
-    u,s,v = np.linalg.svd(a_rvonly, full_matrices=False)
+    # subtract off the mean values from every time series:
+    a = np.delete(order_time_par, (71,66,57,72), axis=1) # remove co-added CCF and bad orders
+    a_rvonly = a[:,:,1] # select RVs    
+    a_rvonly -= np.repeat([np.mean(a_rvonly,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
+    a_all = np.reshape(a,(48,-1)) # select all Gaussian parameters
+    a_all -= np.repeat([np.mean(a_all,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
     
+    #do SVD on RVs only:
+    u,s,v = np.linalg.svd(a_rvonly, full_matrices=False)
     #plot some eigenvalues:
     plt.scatter(np.arange(48),s**2)
     plt.title('Eigenvalues')
     plt.xlim(-1,50)
     plt.yscale('log')
-    plt.ylim(0.0001,10.0)
-    plt.savefig('eigenvalues.png')
+    plt.ylim(0.00001,0.1)
+    plt.savefig('eigenvalues_rv.png')
     plt.clf()
-    
     #plot some eigenvectors:
     plt.plot(v[0,:],color='red')
     plt.plot(v[1,:],color='orange')
@@ -282,7 +284,29 @@ if __name__ == "__main__":
     plt.xlabel('Order #')
     plt.ylabel(r'$\Delta$ velocity (km/s)')
     plt.title('Eigenvectors')
-    plt.savefig('eigenvectors.png')
+    plt.savefig('eigenvectors_rv.png')
+    plt.clf()
+    
+    #do SVD on all Gaussian parameters:
+    u,s,v = np.linalg.svd(a_all, full_matrices=False)
+    #plot some eigenvalues:
+    plt.scatter(np.arange(48),s**2)
+    plt.title('Eigenvalues')
+    plt.xlim(-1,50)
+    plt.yscale('log')
+    plt.ylim(1.0e6,2.0e14)
+    plt.savefig('eigenvalues_all.png')
+    plt.clf()
+    #plot some eigenvectors:
+    plt.plot(v[0,:],color='red')
+    plt.plot(v[1,:],color='orange')
+    plt.plot(v[2,:],color='green')
+    plt.plot(v[3,:],color='blue')
+    plt.plot(v[4,:],color='purple')
+    plt.xlabel('Order #')
+    #plt.ylabel(r'$\Delta$ velocity (km/s)')
+    plt.title('Eigenvectors')
+    plt.savefig('eigenvectors_all.png')
     plt.clf()
 
     
