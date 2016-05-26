@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+import matplotlib.gridspec as gridspec
 from astropy.io import fits
 from scipy.optimize import curve_fit
 import pdb
@@ -262,8 +263,13 @@ if __name__ == "__main__":
     a = np.delete(order_time_par, (71,66,57,72), axis=1) # remove co-added CCF and bad orders
     a_rvonly = a[:,:,1] # select RVs    
     a_rvonly -= np.repeat([np.mean(a_rvonly,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
+    a_rvonly /= np.repeat([np.sqrt(np.var(a_rvonly,axis=0))],48,axis=0)  #divide out the sqrt(variance) from each order time series
     a_all = np.reshape(a,(48,-1)) # select all Gaussian parameters
     a_all -= np.repeat([np.mean(a_all,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
+    a_all /= np.repeat([np.sqrt(np.var(a_all,axis=0))],48,axis=0)  #divide out the sqrt(variance) from each order time series
+    a_norv = np.reshape(np.delete(a,1,axis=2),(48,-1)) # select all Gaussian parameters EXCEPT RV
+    a_norv -= np.repeat([np.mean(a_norv,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
+    a_norv /= np.repeat([np.sqrt(np.var(a_norv,axis=0))],48,axis=0)  #divide out the sqrt(variance) from each order time series
     
     #do SVD on RVs only:
     u,s,v = np.linalg.svd(a_rvonly, full_matrices=False)
@@ -272,18 +278,16 @@ if __name__ == "__main__":
     plt.title('Eigenvalues')
     plt.xlim(-1,50)
     plt.yscale('log')
-    plt.ylim(0.00001,0.1)
+    plt.ylim(0.5,5.0e2)
     plt.savefig('eigenvalues_rv.png')
     plt.clf()
     #plot some eigenvectors:
-    plt.plot(v[0,:],color='red')
-    plt.plot(v[1,:],color='orange')
-    plt.plot(v[2,:],color='green')
-    plt.plot(v[3,:],color='blue')
-    plt.plot(v[4,:],color='purple')
+    plt.plot(v[0,:],color='red',label='vector 1')
+    plt.plot(v[1,:],color='blue',label='vector 2')
     plt.xlabel('Order #')
     plt.ylabel(r'$\Delta$ velocity (km/s)')
     plt.title('Eigenvectors')
+    plt.legend()
     plt.savefig('eigenvectors_rv.png')
     plt.clf()
     
@@ -294,19 +298,47 @@ if __name__ == "__main__":
     plt.title('Eigenvalues')
     plt.xlim(-1,50)
     plt.yscale('log')
-    plt.ylim(1.0e6,2.0e14)
+    plt.ylim(10.0,1.0e4)
     plt.savefig('eigenvalues_all.png')
     plt.clf()
     #plot some eigenvectors:
-    plt.plot(v[0,:],color='red')
-    plt.plot(v[1,:],color='orange')
-    plt.plot(v[2,:],color='green')
-    plt.plot(v[3,:],color='blue')
-    plt.plot(v[4,:],color='purple')
-    plt.xlabel('Order #')
-    #plt.ylabel(r'$\Delta$ velocity (km/s)')
     plt.title('Eigenvectors')
+    gs = gridspec.GridSpec(4, 1, hspace=0.2)
+    for i,par in enumerate(['amplitude','mean RV','sigma RV','vertical offset']):
+        ax = plt.subplot(gs[i])
+        plt.plot(v[0][i::4],color='red',label='vector 1')
+        plt.plot(v[1][i::4],color='blue',label='vector 2')
+        #plt.ylim(np.min(v[0:2,i::4]), np.max(v[0:2,i::4]))
+        plt.ylabel(r'$\Delta$'+par)
+    plt.xlabel('Order #')
+    #plt.tight_layout()
+    plt.legend(loc='center right')
     plt.savefig('eigenvectors_all.png')
+    plt.clf()
+    
+    #do SVD on all Gaussian parameters EXCEPT the RVs:
+    u,s,v = np.linalg.svd(a_norv, full_matrices=False)
+    #plot some eigenvalues:
+    plt.scatter(np.arange(48),s**2)
+    plt.title('Eigenvalues')
+    plt.xlim(-1,50)
+    plt.yscale('log')
+    plt.ylim(1.0,1.0e4)
+    plt.savefig('eigenvalues_norv.png')
+    plt.clf()
+    #plot some eigenvectors:
+    plt.title('Eigenvectors')
+    gs = gridspec.GridSpec(3, 1, hspace=0.15)
+    for i,par in enumerate(['amplitude','sigma RV','vertical offset']):
+        ax = plt.subplot(gs[i])
+        ax.plot(v[0][i::3],color='red',label='vector 1')
+        ax.plot(v[1][i::3],color='blue',label='vector 2')
+        #plt.ylim(np.min(v[0:2,i::4]), np.max(v[0:2,i::4]))
+        ax.set_ylabel(r'$\Delta$'+par)
+    plt.xlabel('Order #')
+    #plt.tight_layout()
+    plt.legend(loc='center left')
+    plt.savefig('eigenvectors_norv.png')
     plt.clf()
 
     
