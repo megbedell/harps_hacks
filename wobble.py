@@ -248,15 +248,19 @@ if __name__ == "__main__":
         #print "file {0} of {1} finished".format(i+1,len(s.files))
             
     rv = np.nanmedian(order_time_par[:,:-1,1], axis=1) # median of every order RV (excluding the co-added one)
-    print "pipeline's RV RMS = {0:.2f} m/s".format(np.std(s.rv)*1.0e3)
+    print "pipeline's RV RMS = {0:.3f} m/s".format(np.std(s.rv)*1.0e3)
     
     
     #try weighted means
     masked_par = np.ma.masked_invalid(order_time_par[:,:-1,:])
     rv_aweight = np.ma.average(masked_par[:,:,1], weights=abs(masked_par[:,:,0]), axis=1)
     rv_a2weight = np.ma.average(masked_par[:,:,1], weights=(masked_par[:,:,0])**2, axis=1)
-    print "abs(a) weighted RV RMS = {0:.2f} m/s".format(np.std(rv_aweight)*1.0e3)
-    print "a^2 weighted RV RMS = {0:.2f} m/s".format(np.std(rv_a2weight)*1.0e3)
+    print "abs(a) weighted RV RMS = {0:.3f} m/s".format(np.std(rv_aweight)*1.0e3)
+    print "a^2 weighted RV RMS = {0:.3f} m/s".format(np.std(rv_a2weight)*1.0e3)
+    
+    par_meansub =  masked_par[:,:,1] - np.repeat([np.ma.average(masked_par[:,:,1], axis=0)],48,axis=0)
+    rv_meansub_aweight = np.ma.average(par_meansub, weights=abs(masked_par[:,:,0]), axis=1)
+    print "abs(a) weighted, mean-subtracted RV RMS = {0:.3f} m/s".format(np.std(rv_meansub_aweight)*1.0e3)   
     
     #PCA!
     # subtract off the mean values from every time series:
@@ -270,6 +274,9 @@ if __name__ == "__main__":
     a_norv = np.reshape(np.delete(a,1,axis=2),(48,-1)) # select all Gaussian parameters EXCEPT RV
     a_norv -= np.repeat([np.mean(a_norv,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
     a_norv /= np.repeat([np.sqrt(np.var(a_norv,axis=0))],48,axis=0)  #divide out the sqrt(variance) from each order time series
+    a_rvsig = np.reshape(np.delete(a,(0,3),axis=2),(48,-1)) # select RV mean & sigma only
+    a_rvsig -= np.repeat([np.mean(a_rvsig,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
+    a_rvsig /= np.repeat([np.sqrt(np.var(a_rvsig,axis=0))],48,axis=0)  #divide out the sqrt(variance) from each order time series
     
     #do SVD on RVs only:
     u,s,v = np.linalg.svd(a_rvonly, full_matrices=False)
@@ -339,6 +346,45 @@ if __name__ == "__main__":
     #plt.tight_layout()
     plt.legend(loc='center left')
     plt.savefig('eigenvectors_norv.png')
+    plt.clf()
+
+    #do SVD on RV mean & sigma only:
+    u,s,v = np.linalg.svd(a_rvsig, full_matrices=False)
+    #plot some eigenvalues:
+    plt.scatter(np.arange(48),s**2)
+    plt.title('Eigenvalues')
+    plt.xlim(-1,50)
+    plt.yscale('log')
+    plt.ylim(1.0e1,1.0e3)
+    plt.savefig('eigenvalues_rvsig.png')
+    plt.clf()
+    #plot some eigenvectors:
+    plt.title('Eigenvectors')
+    gs = gridspec.GridSpec(3, 2, hspace=0.15)
+    ax = plt.subplot(gs[0,:])
+    ax.plot(v[0][0::2],color='red',label='vector 1')
+    ax.plot(v[1][0::2],color='blue',label='vector 2')
+    ax.set_ylabel(r'$\Delta$ mean RV')
+    ax = plt.subplot(gs[1,:])
+    ax.plot(v[0][1::2],color='red',label='vector 1')
+    ax.plot(v[1][1::2],color='blue',label='vector 2')
+    ax.set_ylabel(r'$\Delta \sigma_{RV}$')
+    ax = plt.subplot(gs[2,0])
+    ax.scatter(v[0][0::2],v[0][1::2],color='red',label='vector 1')
+    ax.scatter(v[1][0::2],v[1][1::2],color='blue',label='vector 2')
+    ax.set_ylabel(r'$\Delta \sigma_{RV}$')
+    ax.set_xlabel(r'$\Delta$ mean RV')
+    ax2 = plt.subplot(gs[2,1])
+    h,l=ax.get_legend_handles_labels()
+    ax2.set_frame_on(False)
+    ax2.axes.get_yaxis().set_visible(False)
+    ax2.axes.get_xaxis().set_visible(False)
+    ax2.legend(h,l,loc='center',mode="expand") 
+    
+
+    #plt.xlabel('Order #')
+    #plt.legend(loc='upper right')
+    plt.savefig('eigenvectors_rvsig.png')
     plt.clf()
 
     
