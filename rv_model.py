@@ -51,8 +51,8 @@ class RV_Model:
         rv_star = np.zeros(n_epochs) + param['v0'] + param['linear']*self.t # [n_epochs] timeseries of modelled stellar RV (f(t_n; theta) in notes)
         
         obs = self.data[:,:,1] # central RVs only
-        lnprob_all = -0.5 * (obs - np.repeat([param['order_offset']],n_epochs,axis=0))**2/sig**2 - \
-                        0.5*np.log(sig**2)
+        lnprob_all = -0.5 * (obs - np.repeat([param['order_offset']],n_epochs,axis=0) - \
+                        np.repeat([rv_star],69,axis=0).T)**2/sig**2 - 0.5*np.log(sig**2)
         lnprob = np.sum(lnprob_all)
         
         return lnprob
