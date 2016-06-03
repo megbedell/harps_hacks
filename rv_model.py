@@ -9,12 +9,14 @@ class RV_Model:
     """A white-noise model considering RVs from each echelle order 
     as independent measurements."""
     
-    def __init__(self,data=None,param=None):
+    def __init__(self,t=None,data=None,param=None,model=None):
+        self.t = t
         self.data = data
         self.param = param
+        self.model = model
     
     def __call__(self):
-        return get_lnprob(self.data,self.param)
+        return self.get_lnprob()
     
     def get_data(self,datafiles):
         """input: a list of all HARPS pipeline CCF data product filenames.
@@ -28,18 +30,29 @@ class RV_Model:
         
         self.data = data
 
-    def set_param(self,v0=0.0,linear=0.0,b=None,c=None,planetpar=None):
-        """set model parameters for the stellar RV & uncertainties.
+    def set_param(self,b=None,c=None,order_offset=None,v0=0.0,linear=0.0,planetpar=None):
+        """set model parameters for the RV & uncertainties.
         can only handle a linear trend... so far!"""
-        if not b:
+        if b is None:
             n_epochs = np.shape(self.data)[0]
             b = np.ones(n_epochs) # error per epoch
-        if not c:
+        if c is None:
             c = np.ones(69) # error per order
-        self.param = {"b":b, "c":c, "v0":v0, "linear":linear}
-
-    def get_lnprob(self):
+        if order_offset is None:
+            order_offset = np.zeros(69) # RV offset per order
+        self.param = {"b":b, "c":c, "order_offset":order_offset, "v0":v0, "linear":linear}
+        
+    def get_lnprob(self, param=None):
+        if param is None:
+            param = self.param
         n_epochs = np.shape(self.data)[0]
-        sig = np.repeat([self.param['b']],69,axis=0).T * np.repeat([self.param['c']],n_epochs,axis=0) # n_epochs x 69 array of errors
-
-        print "Who knows?"
+        sig = np.repeat([param['b']],69,axis=0).T * np.repeat([param['c']],n_epochs,axis=0) # [n_epochs, 69] array of errors
+        
+        rv_star = np.zeros(n_epochs) + param['v0'] + param['linear']*self.t # [n_epochs] timeseries of modelled stellar RV (f(t_n; theta) in notes)
+        
+        obs = self.data[:,:,1] # central RVs only
+        lnprob_all = -0.5 * (obs - np.repeat([param['order_offset']],n_epochs,axis=0))**2/sig**2 - \
+                        0.5*np.log(sig**2)
+        lnprob = np.sum(lnprob_all)
+        
+        return lnprob

@@ -29,7 +29,9 @@ if __name__ == "__main__":
     s = readsav(data_dir+'HIP54287_result.dat') 
  
     HIP54287 = rv_model.RV_Model()
-    HIP54287.get_data(s.files)
+    HIP54287.t = s.date - s.date[0]  # timeseries epochs
+    HIP54287.get_data(s.files)  # fetch order-by-order RVs
+    HIP54287.set_param()
 
     pdb.set_trace()
     
