@@ -28,6 +28,10 @@ class RV_Model:
         
         self.data = data
 
+    def set_param(self,v0=0.0,a=0.0,planetpar=None):
+        """set model parameters for the stellar RV.
+        can only handle a linear trend... so far!"""
+        self.param = {"v0":v0, "a":a}
 
 def get_likelihood(data,param):
     print "Who knows?"
