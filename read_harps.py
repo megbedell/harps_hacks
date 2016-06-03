@@ -171,7 +171,7 @@ def rv_parabola_fit(velocity, ccf):
         order_rvs[i] = parabola_min(x,y)  # find the RV minimum using parabolic interpolation
     return order_rvs
     
-def rv_gaussian_fit(velocity, ccf, n_points=20, debug=False):
+def rv_gaussian_fit(velocity, ccf, n_points=20, debug=False, all=False):
     '''Read in the pipeline CCF data product and return Gaussian-fitted RV for each order
     
     Parameters
@@ -182,6 +182,8 @@ def rv_gaussian_fit(velocity, ccf, n_points=20, debug=False):
     ccf value
     n_points : int
     total number of points on either side of the minimum to fit, must be >= 2
+    all : boolean
+    if True then include the three non-functional orders and the co-added "order"
 
     Returns
     -------
@@ -216,4 +218,7 @@ def rv_gaussian_fit(velocity, ccf, n_points=20, debug=False):
             plt.plot(x, gauss_function(x,popt[0],popt[1],popt[2],popt[3]))
             plt.ylim(min(ccf[i])-500,max(order))
             plt.show()
+    
+    if not all:
+        order_par = np.delete(order_par, [57,66,71,72], axis=0)
     return order_par

@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+import matplotlib.gridspec as gridspec
 from astropy.io import fits
 import pdb
 from scipy.io.idl import readsav
@@ -33,24 +35,23 @@ if __name__ == "__main__":
     
     
     order_time_par = HIP54287.data        
-    rv = np.nanmedian(order_time_par[:,:-1,1], axis=1) # median of every order RV (excluding the co-added one)
+    rv = np.nanmedian(order_time_par[:,:,1], axis=1) # median of every order RV
     print "pipeline's RV RMS = {0:.3f} m/s".format(np.std(s.rv)*1.0e3)
     
     
     #try weighted means
-    masked_par = np.ma.masked_invalid(order_time_par[:,:-1,:])
-    rv_aweight = np.ma.average(masked_par[:,:,1], weights=abs(masked_par[:,:,0]), axis=1)
-    rv_a2weight = np.ma.average(masked_par[:,:,1], weights=(masked_par[:,:,0])**2, axis=1)
+    rv_aweight = np.average(order_time_par[:,:,1], weights=abs(order_time_par[:,:,0]), axis=1)
+    rv_a2weight = np.average(order_time_par[:,:,1], weights=(order_time_par[:,:,0])**2, axis=1)
     print "abs(a) weighted RV RMS = {0:.3f} m/s".format(np.std(rv_aweight)*1.0e3)
     print "a^2 weighted RV RMS = {0:.3f} m/s".format(np.std(rv_a2weight)*1.0e3)
     
-    par_meansub =  masked_par[:,:,1] - np.repeat([np.ma.average(masked_par[:,:,1], axis=0)],48,axis=0)
-    rv_meansub_aweight = np.ma.average(par_meansub, weights=abs(masked_par[:,:,0]), axis=1)
+    par_meansub =  order_time_par[:,:,1] - np.repeat([np.average(order_time_par[:,:,1], axis=0)],48,axis=0)
+    rv_meansub_aweight = np.average(par_meansub, weights=abs(order_time_par[:,:,0]), axis=1)
     print "abs(a) weighted, mean-subtracted RV RMS = {0:.3f} m/s".format(np.std(rv_meansub_aweight)*1.0e3)   
     
     #PCA!
     # subtract off the mean values from every time series:
-    a = np.delete(order_time_par, (71,66,57,72), axis=1) # remove co-added CCF and bad orders
+    a = order_time_par
     a_rvonly = a[:,:,1] # select RVs    
     a_rvonly -= np.repeat([np.mean(a_rvonly,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
     a_rvonly /= np.repeat([np.sqrt(np.var(a_rvonly,axis=0))],48,axis=0)  #divide out the sqrt(variance) from each order time series
@@ -72,7 +73,7 @@ if __name__ == "__main__":
     plt.xlim(-1,50)
     plt.yscale('log')
     plt.ylim(0.5,5.0e2)
-    plt.savefig('eigenvalues_rv.png')
+    plt.savefig('fig/eigenvalues_rv.png')
     plt.clf()
     #plot some eigenvectors:
     plt.plot(v[0,:],color='red',label='vector 1')
@@ -81,7 +82,7 @@ if __name__ == "__main__":
     plt.ylabel(r'$\Delta$ velocity (km/s)')
     plt.title('Eigenvectors')
     plt.legend()
-    plt.savefig('eigenvectors_rv.png')
+    plt.savefig('fig/eigenvectors_rv.png')
     plt.clf()
     
     #do SVD on all Gaussian parameters:
@@ -92,7 +93,7 @@ if __name__ == "__main__":
     plt.xlim(-1,50)
     plt.yscale('log')
     plt.ylim(10.0,1.0e4)
-    plt.savefig('eigenvalues_all.png')
+    plt.savefig('fig/eigenvalues_all.png')
     plt.clf()
     #plot some eigenvectors:
     plt.title('Eigenvectors')
@@ -106,7 +107,7 @@ if __name__ == "__main__":
     plt.xlabel('Order #')
     #plt.tight_layout()
     plt.legend(loc='center right')
-    plt.savefig('eigenvectors_all.png')
+    plt.savefig('fig/eigenvectors_all.png')
     plt.clf()
     
     #do SVD on all Gaussian parameters EXCEPT the RVs:
@@ -117,7 +118,7 @@ if __name__ == "__main__":
     plt.xlim(-1,50)
     plt.yscale('log')
     plt.ylim(1.0,1.0e4)
-    plt.savefig('eigenvalues_norv.png')
+    plt.savefig('fig/eigenvalues_norv.png')
     plt.clf()
     #plot some eigenvectors:
     plt.title('Eigenvectors')
@@ -131,7 +132,7 @@ if __name__ == "__main__":
     plt.xlabel('Order #')
     #plt.tight_layout()
     plt.legend(loc='center left')
-    plt.savefig('eigenvectors_norv.png')
+    plt.savefig('fig/eigenvectors_norv.png')
     plt.clf()
 
     #do SVD on RV mean & sigma only:
@@ -142,7 +143,7 @@ if __name__ == "__main__":
     plt.xlim(-1,50)
     plt.yscale('log')
     plt.ylim(1.0e1,1.0e3)
-    plt.savefig('eigenvalues_rvsig.png')
+    plt.savefig('fig/eigenvalues_rvsig.png')
     plt.clf()
     #plot some eigenvectors:
     plt.title('Eigenvectors')
@@ -170,7 +171,7 @@ if __name__ == "__main__":
 
     #plt.xlabel('Order #')
     #plt.legend(loc='upper right')
-    plt.savefig('eigenvectors_rvsig.png')
+    plt.savefig('fig/eigenvectors_rvsig.png')
     plt.clf()
 
     
