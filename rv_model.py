@@ -14,7 +14,7 @@ class RV_Model:
         self.param = param
     
     def __call__(self):
-        return get_likelihood(self.data,self.param)
+        return get_lnprob(self.data,self.param)
     
     def get_data(self,datafiles):
         """input: a list of all HARPS pipeline CCF data product filenames.
@@ -28,10 +28,18 @@ class RV_Model:
         
         self.data = data
 
-    def set_param(self,v0=0.0,a=0.0,planetpar=None):
-        """set model parameters for the stellar RV.
+    def set_param(self,v0=0.0,linear=0.0,b=None,c=None,planetpar=None):
+        """set model parameters for the stellar RV & uncertainties.
         can only handle a linear trend... so far!"""
-        self.param = {"v0":v0, "a":a}
+        if not b:
+            n_epochs = np.shape(self.data)[0]
+            b = np.ones(n_epochs) # error per epoch
+        if not c:
+            c = np.ones(69) # error per order
+        self.param = {"b":b, "c":c, "v0":v0, "linear":linear}
 
-def get_likelihood(data,param):
-    print "Who knows?"
+    def get_lnprob(self):
+        n_epochs = np.shape(self.data)[0]
+        sig = np.repeat([self.param['b']],69,axis=0).T * np.repeat([self.param['c']],n_epochs,axis=0) # n_epochs x 69 array of errors
+
+        print "Who knows?"
