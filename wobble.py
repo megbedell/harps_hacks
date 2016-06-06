@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import matplotlib.gridspec as gridspec
+import matplotlib.cm as cm
 from astropy.io import fits
 import pdb
 from scipy.io.idl import readsav
@@ -31,10 +32,7 @@ if __name__ == "__main__":
     HIP54287 = rv_model.RV_Model()
     HIP54287.t = s.date - s.date[0]  # timeseries epochs
     HIP54287.get_data(s.files)  # fetch order-by-order RVs
-    HIP54287.set_param()
-
-    pdb.set_trace()
-    
+    HIP54287.set_param()    
     
     order_time_par = HIP54287.data        
     rv = np.nanmedian(order_time_par[:,:,1], axis=1) # median of every order RV
@@ -51,129 +49,29 @@ if __name__ == "__main__":
     rv_meansub_aweight = np.average(par_meansub, weights=abs(order_time_par[:,:,0]), axis=1)
     print "abs(a) weighted, mean-subtracted RV RMS = {0:.3f} m/s".format(np.std(rv_meansub_aweight)*1.0e3)   
     
-    #PCA!
     # subtract off the mean values from every time series:
     a = order_time_par
     a_rvonly = a[:,:,1] # select RVs    
     a_rvonly -= np.repeat([np.mean(a_rvonly,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
-    a_rvonly /= np.repeat([np.sqrt(np.var(a_rvonly,axis=0))],48,axis=0)  #divide out the sqrt(variance) from each order time series
-    a_all = np.reshape(a,(48,-1)) # select all Gaussian parameters
-    a_all -= np.repeat([np.mean(a_all,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
-    a_all /= np.repeat([np.sqrt(np.var(a_all,axis=0))],48,axis=0)  #divide out the sqrt(variance) from each order time series
-    a_norv = np.reshape(np.delete(a,1,axis=2),(48,-1)) # select all Gaussian parameters EXCEPT RV
-    a_norv -= np.repeat([np.mean(a_norv,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
-    a_norv /= np.repeat([np.sqrt(np.var(a_norv,axis=0))],48,axis=0)  #divide out the sqrt(variance) from each order time series
-    a_rvsig = np.reshape(np.delete(a,(0,3),axis=2),(48,-1)) # select RV mean & sigma only
-    a_rvsig -= np.repeat([np.mean(a_rvsig,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
-    a_rvsig /= np.repeat([np.sqrt(np.var(a_rvsig,axis=0))],48,axis=0)  #divide out the sqrt(variance) from each order time series
+   
+    # plot time series of each order
+    fig = plt.figure()
+    gs = gridspec.GridSpec(2,1,height_ratios=[5,1],hspace=0.05)
+    ax1 = fig.add_subplot(gs[0])
+    ax2 = fig.add_subplot(gs[1], sharex=ax1)
+    plt.setp(ax1.get_xticklabels(), visible=False)
     
-    #do SVD on RVs only:
-    u,s,v = np.linalg.svd(a_rvonly, full_matrices=False)
-    #plot some eigenvalues:
-    plt.scatter(np.arange(48),s**2)
-    plt.title('Eigenvalues')
-    plt.xlim(-1,50)
-    plt.yscale('log')
-    plt.ylim(0.5,5.0e2)
-    plt.savefig('fig/eigenvalues_rv.png')
-    plt.clf()
-    #plot some eigenvectors:
-    plt.plot(v[0,:],color='red',label='vector 1')
-    plt.plot(v[1,:],color='blue',label='vector 2')
-    plt.xlabel('Order #')
-    plt.ylabel(r'$\Delta$ velocity (km/s)')
-    plt.title('Eigenvectors')
-    plt.legend()
-    plt.savefig('fig/eigenvectors_rv.png')
-    plt.clf()
-    
-    #do SVD on all Gaussian parameters:
-    u,s,v = np.linalg.svd(a_all, full_matrices=False)
-    #plot some eigenvalues:
-    plt.scatter(np.arange(48),s**2)
-    plt.title('Eigenvalues')
-    plt.xlim(-1,50)
-    plt.yscale('log')
-    plt.ylim(10.0,1.0e4)
-    plt.savefig('fig/eigenvalues_all.png')
-    plt.clf()
-    #plot some eigenvectors:
-    plt.title('Eigenvectors')
-    gs = gridspec.GridSpec(4, 1, hspace=0.2)
-    for i,par in enumerate(['amplitude','mean RV','sigma RV','vertical offset']):
-        ax = plt.subplot(gs[i])
-        plt.plot(v[0][i::4],color='red',label='vector 1')
-        plt.plot(v[1][i::4],color='blue',label='vector 2')
-        #plt.ylim(np.min(v[0:2,i::4]), np.max(v[0:2,i::4]))
-        plt.ylabel(r'$\Delta$'+par)
-    plt.xlabel('Order #')
-    #plt.tight_layout()
-    plt.legend(loc='center right')
-    plt.savefig('fig/eigenvectors_all.png')
-    plt.clf()
-    
-    #do SVD on all Gaussian parameters EXCEPT the RVs:
-    u,s,v = np.linalg.svd(a_norv, full_matrices=False)
-    #plot some eigenvalues:
-    plt.scatter(np.arange(48),s**2)
-    plt.title('Eigenvalues')
-    plt.xlim(-1,50)
-    plt.yscale('log')
-    plt.ylim(1.0,1.0e4)
-    plt.savefig('fig/eigenvalues_norv.png')
-    plt.clf()
-    #plot some eigenvectors:
-    plt.title('Eigenvectors')
-    gs = gridspec.GridSpec(3, 1, hspace=0.15)
-    for i,par in enumerate(['amplitude','sigma RV','vertical offset']):
-        ax = plt.subplot(gs[i])
-        ax.plot(v[0][i::3],color='red',label='vector 1')
-        ax.plot(v[1][i::3],color='blue',label='vector 2')
-        #plt.ylim(np.min(v[0:2,i::4]), np.max(v[0:2,i::4]))
-        ax.set_ylabel(r'$\Delta$'+par)
-    plt.xlabel('Order #')
-    #plt.tight_layout()
-    plt.legend(loc='center left')
-    plt.savefig('fig/eigenvectors_norv.png')
-    plt.clf()
-
-    #do SVD on RV mean & sigma only:
-    u,s,v = np.linalg.svd(a_rvsig, full_matrices=False)
-    #plot some eigenvalues:
-    plt.scatter(np.arange(48),s**2)
-    plt.title('Eigenvalues')
-    plt.xlim(-1,50)
-    plt.yscale('log')
-    plt.ylim(1.0e1,1.0e3)
-    plt.savefig('fig/eigenvalues_rvsig.png')
-    plt.clf()
-    #plot some eigenvectors:
-    plt.title('Eigenvectors')
-    gs = gridspec.GridSpec(3, 2, hspace=0.15)
-    ax = plt.subplot(gs[0,:])
-    ax.plot(v[0][0::2],color='red',label='vector 1')
-    ax.plot(v[1][0::2],color='blue',label='vector 2')
-    ax.set_ylabel(r'$\Delta$ mean RV')
-    ax = plt.subplot(gs[1,:])
-    ax.plot(v[0][1::2],color='red',label='vector 1')
-    ax.plot(v[1][1::2],color='blue',label='vector 2')
-    ax.set_ylabel(r'$\Delta \sigma_{RV}$')
-    ax = plt.subplot(gs[2,0])
-    ax.scatter(v[0][0::2],v[0][1::2],color='red',label='vector 1')
-    ax.scatter(v[1][0::2],v[1][1::2],color='blue',label='vector 2')
-    ax.set_ylabel(r'$\Delta \sigma_{RV}$')
-    ax.set_xlabel(r'$\Delta$ mean RV')
-    ax2 = plt.subplot(gs[2,1])
-    h,l=ax.get_legend_handles_labels()
-    ax2.set_frame_on(False)
-    ax2.axes.get_yaxis().set_visible(False)
-    ax2.axes.get_xaxis().set_visible(False)
-    ax2.legend(h,l,loc='center',mode="expand") 
-    
-
-    #plt.xlabel('Order #')
-    #plt.legend(loc='upper right')
-    plt.savefig('fig/eigenvectors_rvsig.png')
+    colors = iter(cm.gist_rainbow(np.linspace(0, 1, 69)))
+    for i in range(69):
+        ax1.plot(a_rvonly[:,i]+i/100.0, color=next(colors))
+    ax2.plot((s.rv-np.mean(s.rv)), color='black')
+    ax1.set_ylabel('RV + offset (km/s)')
+    ax2.set_ylabel('RV (km/s)')
+    ax2.set_xlabel('Epoch #')
+    #sm = plt.cm.ScalarMappable(cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=69))
+    #sm._A = []
+    #plt.colorbar(sm)
+    plt.savefig('fig/timeseries_orders')
     plt.clf()
 
     
