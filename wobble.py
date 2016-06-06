@@ -63,15 +63,16 @@ if __name__ == "__main__":
     
     colors = iter(cm.gist_rainbow(np.linspace(0, 1, 69)))
     for i in range(69):
-        ax1.plot(a_rvonly[:,i]+i/100.0, color=next(colors))
+        ax1.plot(a_rvonly[:,i], color=next(colors), ls=':')
     ax2.plot((s.rv-np.mean(s.rv)), color='black')
-    ax1.set_ylabel('RV + offset (km/s)')
+    ax1.set_ylim((-0.05,0.08))
+    ax1.set_ylabel('RV (km/s)')
     ax2.set_ylabel('RV (km/s)')
     ax2.set_xlabel('Epoch #')
     #sm = plt.cm.ScalarMappable(cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=69))
     #sm._A = []
     #plt.colorbar(sm)
-    plt.savefig('fig/timeseries_orders')
+    plt.savefig('fig/timeseries_orders.png')
     plt.clf()
 
     
