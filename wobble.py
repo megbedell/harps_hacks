@@ -10,6 +10,7 @@ import astropy.time
 import datetime
 import read_harps
 import rv_model
+from weighted_median import weighted_median
 
 def plot_timeseries(time,rv,rv_err,rv2=0):
     '''Plot RV timeseries (probably delete this later)
@@ -42,8 +43,15 @@ if __name__ == "__main__":
     #try weighted means
     rv_aweight = np.average(order_time_par[:,:,1], weights=abs(order_time_par[:,:,0]), axis=1)
     rv_a2weight = np.average(order_time_par[:,:,1], weights=(order_time_par[:,:,0])**2, axis=1)
-    print "abs(a) weighted RV RMS = {0:.3f} m/s".format(np.std(rv_aweight)*1.0e3)
-    print "a^2 weighted RV RMS = {0:.3f} m/s".format(np.std(rv_a2weight)*1.0e3)
+    print "abs(a) weighted mean RV RMS = {0:.3f} m/s".format(np.std(rv_aweight)*1.0e3)
+    print "a^2 weighted mean RV RMS = {0:.3f} m/s".format(np.std(rv_a2weight)*1.0e3)
+    
+    rv_aweightmed = []
+    for i in range(len(HIP54287.t)):
+        rv_aweightmed.append(weighted_median(order_time_par[i,:,1], ws=abs(order_time_par[i,:,0])))
+    #rv_aweightmed = np.apply_along_axis(weighted_median,1,order_time_par[:,:,1])
+    print "abs(a) weighted median RV RMS = {0:.3f} m/s".format(np.std(rv_aweightmed)*1.0e3)
+    
     
     par_meansub =  order_time_par[:,:,1] - np.repeat([np.average(order_time_par[:,:,1], axis=0)],48,axis=0)
     rv_meansub_aweight = np.average(par_meansub, weights=abs(order_time_par[:,:,0]), axis=1)
@@ -53,22 +61,21 @@ if __name__ == "__main__":
     a = order_time_par
     a_rvonly = a[:,:,1] # select RVs    
     a_rvonly -= np.repeat([np.mean(a_rvonly,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
+    
    
     # plot time series of each order
-    fig = plt.figure()
-    gs = gridspec.GridSpec(2,1,height_ratios=[5,1],hspace=0.05)
-    ax1 = fig.add_subplot(gs[0])
-    ax2 = fig.add_subplot(gs[1], sharex=ax1)
-    plt.setp(ax1.get_xticklabels(), visible=False)
-    
+
     colors = iter(cm.gist_rainbow(np.linspace(0, 1, 69)))
     for i in range(69):
-        ax1.plot(a_rvonly[:,i], color=next(colors), ls=':')
-    ax2.plot((s.rv-np.mean(s.rv)), color='black')
-    ax1.set_ylim((-0.05,0.08))
-    ax1.set_ylabel('RV (km/s)')
-    ax2.set_ylabel('RV (km/s)')
-    ax2.set_xlabel('Epoch #')
+        plt.plot(a_rvonly[:,i], color=next(colors), ls='-', linewidth=0.5)
+    plt.plot((s.rv-np.mean(s.rv)), color='black', linewidth=2.5, label='pipeline RV')
+    plt.plot(rv-np.mean(rv), color='black', linewidth=1.5, label='median RV')
+    plt.plot(rv_aweightmed-np.mean(rv_aweightmed), color='red', linewidth=1.5, label='weighted median RV')
+    plt.ylim((-0.04,0.04))
+    plt.xlim((0,47))
+    plt.ylabel('RV (km/s)')
+    plt.xlabel('Epoch #')
+    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=3, mode="expand", borderaxespad=0.)
     #sm = plt.cm.ScalarMappable(cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=69))
     #sm._A = []
     #plt.colorbar(sm)
