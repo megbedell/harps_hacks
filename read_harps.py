@@ -45,6 +45,29 @@ def read_ccfs(filename):
     rv = header['HIERARCH ESO DRS CCF RV']
         
     return velocity, ccf, rv
+    
+def read_wavepar(filename):
+    '''Parse wavelength solution on a HARPS file from the ESO pipeline
+
+    Parameters
+    ----------
+    filename : string
+    name of the fits file with the data (can be ccf, e2ds, s1d)
+
+    Returns
+    -------
+
+    '''
+    sp = fits.open(filename)
+    header = sp[0].header
+    
+    #n_orders = header['NAXIS2']
+    n_orders = 72
+    wavepar = np.arange(4*n_orders, dtype=np.float).reshape(n_orders,4)
+    for i in np.nditer(wavepar, op_flags=['readwrite']):
+        i[...] = header['HIERARCH ESO DRS CAL TH COEFF LL{0}'.format(str(int(i)))]
+    return wavepar
+        
 
 def gauss_function(x, a, x0, sigma, offset):
     '''it's a Gaussian.'''
