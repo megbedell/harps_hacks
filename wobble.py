@@ -11,6 +11,7 @@ import datetime
 import read_harps
 import rv_model
 from weighted_median import weighted_median
+from scipy.stats.stats import pearsonr
 
 def plot_timeseries(time,rv,rv_err,rv2=0):
     '''Plot RV timeseries (probably delete this later)
@@ -33,11 +34,13 @@ if __name__ == "__main__":
     HIP54287 = rv_model.RV_Model()
     HIP54287.t = s.date - s.date[0]  # timeseries epochs
     HIP54287.get_data(s.files)  # fetch order-by-order RVs
+    HIP54287.get_wavepar(s.files) # fetch wavelength solution param
     HIP54287.set_param()    
     
     order_time_par = HIP54287.data        
-    rv = np.nanmedian(order_time_par[:,:,1], axis=1) # median of every order RV
+    rv = np.median(order_time_par[:,:,1], axis=1) # median of every order RV
     print "pipeline's RV RMS = {0:.3f} m/s".format(np.std(s.rv)*1.0e3)
+    print "unweighted median RV RMS = {0:.3f} m/s".format(np.std(rv)*1.0e3)
     
     
     #try weighted means
@@ -52,35 +55,53 @@ if __name__ == "__main__":
     #rv_aweightmed = np.apply_along_axis(weighted_median,1,order_time_par[:,:,1])
     print "abs(a) weighted median RV RMS = {0:.3f} m/s".format(np.std(rv_aweightmed)*1.0e3)
     
-    
-    par_meansub =  order_time_par[:,:,1] - np.repeat([np.average(order_time_par[:,:,1], axis=0)],48,axis=0)
-    rv_meansub_aweight = np.average(par_meansub, weights=abs(order_time_par[:,:,0]), axis=1)
-    print "abs(a) weighted, mean-subtracted RV RMS = {0:.3f} m/s".format(np.std(rv_meansub_aweight)*1.0e3)   
-    
+
     # subtract off the mean values from every time series:
     a = order_time_par
     a_rvonly = a[:,:,1] # select RVs    
     a_rvonly -= np.repeat([np.mean(a_rvonly,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
     
-   
-    # plot time series of each order
-
-    colors = iter(cm.gist_rainbow(np.linspace(0, 1, 69)))
-    for i in range(69):
-        plt.plot(a_rvonly[:,i], color=next(colors), ls='-', linewidth=0.5)
-    plt.plot((s.rv-np.mean(s.rv)), color='black', linewidth=2.5, label='pipeline RV')
-    plt.plot(rv-np.mean(rv), color='black', linewidth=1.5, label='median RV')
-    plt.plot(rv_aweightmed-np.mean(rv_aweightmed), color='red', linewidth=1.5, label='weighted median RV')
-    plt.ylim((-0.04,0.04))
-    plt.xlim((0,47))
-    plt.ylabel('RV (km/s)')
-    plt.xlabel('Epoch #')
-    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=3, mode="expand", borderaxespad=0.)
-    #sm = plt.cm.ScalarMappable(cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=69))
-    #sm._A = []
-    #plt.colorbar(sm)
-    plt.savefig('fig/timeseries_orders.png')
+    #  let's try some dumb stuff
+    # does pipeline RV correlate with airmass?
+    print 'Pearson R for RV & airmass = {d[0]}, p-val = {d[1]}'.format(d=pearsonr((s.rv-np.mean(s.rv))*1e3, s.airm))
+    plt.scatter((s.rv-np.mean(s.rv))*1e3, s.airm)
+    plt.ylabel("Airmass")
+    plt.xlabel("Pipeline RV (m/s)")
+    plt.savefig("fig/airmass.png")
     plt.clf()
+    # does pipeline RV correlate with SNR?
+    print 'Pearson R for RV & SNR = {d[0]}, p-val = {d[1]}'.format(d=pearsonr((s.rv-np.mean(s.rv))*1e3, s.snr))
+    plt.scatter((s.rv-np.mean(s.rv))*1e3, s.snr)
+    plt.ylabel("SNR")
+    plt.xlabel("Pipeline RV (m/s)")
+    plt.savefig("fig/snr.png")
+    plt.clf()
+    # does pipeline RV correlate with seeing?
+    seeing = np.arange(len(s.files), dtype=np.float)
+    for i in np.nditer(seeing, op_flags=['readwrite']):
+        sp = fits.open(s.files[int(i)])
+        header = sp[0].header
+        i[...] = np.mean([header['HIERARCH ESO TEL AMBI FWHM START'], header['HIERARCH ESO TEL AMBI FWHM END']])
+    rv_seeing = np.delete(s.rv,np.where(seeing == -1))  #remove epochs with no seeing measured
+    seeing = np.delete(seeing,np.where(seeing == -1))
+    
+    print 'Pearson R for RV & seeing = {d[0]}, p-val = {d[1]}'.format(d=pearsonr((rv_seeing-np.mean(rv_seeing))*1e3, seeing))
+    plt.scatter((rv_seeing-np.mean(rv_seeing))*1e3, seeing)
+    plt.ylabel("Seeing")
+    plt.xlabel("Pipeline RV (m/s)")
+    plt.savefig("fig/seeing.png")
+    plt.clf()
+    
+    # does pipeline RV correlate with the sidereal day?
+    sday = 0.99726958
+    date_fold = HIP54287.t % sday
+    plt.scatter(date_fold, (s.rv-np.mean(s.rv))*1e3)
+    plt.ylabel("Pipeline RV (m/s)")
+    plt.xlabel("Date mod 1 sidereal day")
+    plt.savefig("fig/sidereal_day.png")
+    plt.clf()
+    print 'Pearson R for RV & date mod sidereal = {d[0]}, p-val = {d[1]}'.format(d=pearsonr((s.rv-np.mean(s.rv))*1e3, date_fold))
 
+    
     
     
