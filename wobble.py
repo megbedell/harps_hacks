@@ -57,40 +57,9 @@ if __name__ == "__main__":
     
 
     # subtract off the mean values from every time series:
-    a = order_time_par
+    a = np.copy(order_time_par)
     a_rvonly = a[:,:,1] # select RVs    
     a_rvonly -= np.repeat([np.mean(a_rvonly,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
-    
-    #  let's try some dumb stuff
-    # does pipeline RV correlate with airmass?
-    print 'Pearson R for RV & airmass = {d[0]}, p-val = {d[1]}'.format(d=pearsonr((s.rv-np.mean(s.rv))*1e3, s.airm))
-    plt.scatter((s.rv-np.mean(s.rv))*1e3, s.airm)
-    plt.ylabel("Airmass")
-    plt.xlabel("Pipeline RV (m/s)")
-    plt.savefig("fig/airmass.png")
-    plt.clf()
-    # does pipeline RV correlate with SNR?
-    print 'Pearson R for RV & SNR = {d[0]}, p-val = {d[1]}'.format(d=pearsonr((s.rv-np.mean(s.rv))*1e3, s.snr))
-    plt.scatter((s.rv-np.mean(s.rv))*1e3, s.snr)
-    plt.ylabel("SNR")
-    plt.xlabel("Pipeline RV (m/s)")
-    plt.savefig("fig/snr.png")
-    plt.clf()
-    # does pipeline RV correlate with seeing?
-    seeing = np.arange(len(s.files), dtype=np.float)
-    for i in np.nditer(seeing, op_flags=['readwrite']):
-        sp = fits.open(s.files[int(i)])
-        header = sp[0].header
-        i[...] = np.mean([header['HIERARCH ESO TEL AMBI FWHM START'], header['HIERARCH ESO TEL AMBI FWHM END']])
-    rv_seeing = np.delete(s.rv,np.where(seeing == -1))  #remove epochs with no seeing measured
-    seeing = np.delete(seeing,np.where(seeing == -1))
-    
-    print 'Pearson R for RV & seeing = {d[0]}, p-val = {d[1]}'.format(d=pearsonr((rv_seeing-np.mean(rv_seeing))*1e3, seeing))
-    plt.scatter((rv_seeing-np.mean(rv_seeing))*1e3, seeing)
-    plt.ylabel("Seeing")
-    plt.xlabel("Pipeline RV (m/s)")
-    plt.savefig("fig/seeing.png")
-    plt.clf()
     
     # does pipeline RV correlate with the sidereal day?
     sday = 0.99726958
@@ -98,10 +67,69 @@ if __name__ == "__main__":
     plt.scatter(date_fold, (s.rv-np.mean(s.rv))*1e3)
     plt.ylabel("Pipeline RV (m/s)")
     plt.xlabel("Date mod 1 sidereal day")
+    plt.xlim(-0.05,0.25)
     plt.savefig("fig/sidereal_day.png")
-    plt.clf()
     print 'Pearson R for RV & date mod sidereal = {d[0]}, p-val = {d[1]}'.format(d=pearsonr((s.rv-np.mean(s.rv))*1e3, date_fold))
-
+    plt.clf()
     
+    # how do the wavelength solution coefficients compare with RV offset per order?
+    wavepar = np.delete(HIP54287.wavepar,[71, 66, 57],axis=1)  # remove the orders that have no RVs
+    wavepar_avg = np.mean(wavepar,axis=0)
+    data_avg = np.mean(HIP54287.data,axis=0)
+    plt.scatter(data_avg[:,1],wavepar_avg[:,0])
+    plt.xlabel('order offset (km/s)')
+    plt.ylabel('Wavelength parameter 0')
+    plt.ylim(np.min(wavepar_avg[:,0])*0.5,np.max(wavepar_avg[:,0])*1.5)
+    plt.savefig('fig/wavepar0.png')
+    plt.clf()
+    plt.scatter(data_avg[:,1],wavepar_avg[:,1])
+    plt.xlabel('order offset (km/s)')
+    plt.ylabel('Wavelength parameter 1')
+    plt.ylim(np.min(wavepar_avg[:,1])*0.5,np.max(wavepar_avg[:,1])*1.5)
+    plt.savefig('fig/wavepar1.png')
+    plt.clf()
+    plt.scatter(data_avg[:,1],wavepar_avg[:,2])
+    plt.xlabel('order offset (km/s)')
+    plt.ylabel('Wavelength parameter 2')
+    plt.ylim(np.min(wavepar_avg[:,2])*1.5,np.max(wavepar_avg[:,2])*0.5)
+    plt.savefig('fig/wavepar2.png')
+    plt.clf()
+    plt.scatter(data_avg[:,1],wavepar_avg[:,3])
+    plt.xlabel('order offset (km/s)')
+    plt.ylabel('Wavelength parameter 3')
+    plt.ylim(np.min(wavepar_avg[:,3])*1.5,np.max(wavepar_avg[:,3])*0.5)
+    plt.savefig('fig/wavepar3.png')
+    plt.clf()
+    
+    # how do the coefficients change over time?
+    order = 39  # a high-amplitude CCF order
+    plt.scatter(HIP54287.t, wavepar[:,order,0])
+    plt.xlabel('Relative J.D.')
+    plt.ylabel('Wavelength parameter 0')
+    scale = (wavepar[:,order,0].max()-wavepar[:,order,0].min())/2.0
+    plt.ylim(wavepar[:,order,0].min()-scale,wavepar[:,order,0].max()+scale)
+    plt.savefig('fig/wavepar0_time.png')
+    plt.clf()
+    plt.scatter(HIP54287.t, wavepar[:,order,1])
+    plt.xlabel('Relative J.D.')
+    plt.ylabel('Wavelength parameter 1')
+    scale = (wavepar[:,order,1].max()-wavepar[:,order,1].min())/2.0
+    plt.ylim(wavepar[:,order,1].min()-scale,wavepar[:,order,1].max()+scale)
+    plt.savefig('fig/wavepar1_time.png')
+    plt.clf()    
+    plt.scatter(HIP54287.t, wavepar[:,order,2])
+    plt.xlabel('Relative J.D.')
+    plt.ylabel('Wavelength parameter 2')
+    scale = (wavepar[:,order,2].max()-wavepar[:,order,2].min())/2.0
+    plt.ylim(wavepar[:,order,2].min()-scale,wavepar[:,order,2].max()+scale)
+    plt.savefig('fig/wavepar2_time.png')
+    plt.clf()    
+    plt.scatter(HIP54287.t, wavepar[:,order,3])
+    plt.xlabel('Relative J.D.')
+    plt.ylabel('Wavelength parameter 3')
+    scale = (wavepar[:,order,3].max()-wavepar[:,order,3].min())/2.0
+    plt.ylim(wavepar[:,order,3].min()-scale,wavepar[:,order,3].max()+scale)
+    plt.savefig('fig/wavepar3_time.png')
+    plt.clf()
     
     
