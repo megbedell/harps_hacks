@@ -33,12 +33,13 @@ class RV_Model:
     def get_wavepar(self,datafiles):
         """input: a list of all HARPS pipeline CCF data product filenames.
         reads headers and outputs wavelength solution coefficients
-        output self.wavepar: shape n_epochs x 72 orders x 4 Gaussian fit param"""
+        output self.wavepar: shape n_epochs x 72 orders x 4 wavelength param"""
         wavepar = np.zeros((len(datafiles), 72, 4))
         for i,f in enumerate(datafiles):
             wavepar[i,:,:] = read_harps.read_wavepar(f)
         
         self.wavepar = wavepar
+        
 
     def set_param(self,b=None,c=None,order_offset=None,v0=0.0,linear=0.0,planetpar=None):
         """set model parameters for the RV & uncertainties.
