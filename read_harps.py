@@ -67,6 +67,28 @@ def read_wavepar(filename):
     for i in np.nditer(wavepar, op_flags=['readwrite']):
         i[...] = header['HIERARCH ESO DRS CAL TH COEFF LL{0}'.format(str(int(i)))]
     return wavepar
+
+def read_snr(filename):
+    '''Parse SNR from header of a HARPS file from the ESO pipeline
+
+    Parameters
+    ----------
+    filename : string
+    name of the fits file with the data (can be ccf, e2ds, s1d)
+
+    Returns
+    -------
+
+    '''
+    sp = fits.open(filename)
+    header = sp[0].header
+    
+    #n_orders = header['NAXIS2']
+    n_orders = 72
+    snr = np.arange(n_orders, dtype=np.float)
+    for i in np.nditer(snr, op_flags=['readwrite']):
+        i[...] = header['HIERARCH ESO DRS SPE EXT SN{0}'.format(str(int(i)))]
+    return snr
         
 
 def gauss_function(x, a, x0, sigma, offset):
