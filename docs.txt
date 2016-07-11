@@ -1,0 +1,26 @@
+WOBBLE
+
+developed by:
+Megan Bedell (mbedell@oddjob.uchicago.edu)
+David Hogg (david.hogg@nyu.edu)
+
+This document is a record of experiments I have tried while developing the code.
+
+BACKGROUND
+
+The goal of wobble is to derive precise radial velocities from HARPS data. The HARPS data reduction software (DRS) automatically produces RVs which are derived by cross-correlation of the stellar spectrum with a binary mask. Each echelle order has its own cross-correlation function (CCF), and the CCFs are co-added and fit with a Gaussian to produce a final RV. It's not immediately obvious that this is the optimal way to get RVs, so I am experimenting with other methods. Additionally, the HARPS DRS is proprietary and somewhat black-box in function, and an open-source alternative pipeline would be of great value to near-future RV instruments.
+
+Here is a summary of the data products returned by the HARPS pipeline for a single observation: 
+- a CCF fits file: 161 x 73 array containing the cross-correlation functions for each of the 72 echelle orders, plus a co-added CCF of all orders (apparently excluding the first order for unknown reasons). Order indices 57, 66, and 71 are blank. 
+- an S1D fits file: 1-dimensional extracted spectrum which has been corrected for barycentric motion and rebinned to 0.1 Ang steps. 
+- an E2DS fits file: 4096 x 72 array containing the extracted order-by-order spectrum. 
+- header information: Within the header of each FITS file is a lot more information, including wavelength solution coefficients, spectral extraction parameters, order SNRs, barycentric correction values, and the RV drift solution from the simultaneous reference source (if applicable). 
+Also returned are flatfield, blaze, wavelength solution, and localization FITS frames (one per nightly calibration).
+
+Some useful links to documentation:
+https://www.eso.org/sci/facilities/lasilla/instruments/harps/doc/DRS.pdf
+https://www.eso.org/sci/facilities/lasilla/instruments/harps/doc/manual/userman2_1.pdf
+
+RE-FITTING CCFS
+
+The first thing we tried was playing around with the extraction of RV values from the DRS-returned CCFs. 
