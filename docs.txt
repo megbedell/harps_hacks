@@ -54,11 +54,36 @@ still performs marginally better than any other method we tried!
 
 PCA/SVD
 
+The general idea here is to treat each order's RV measurement as a separate time series and look for trends in this N_epoch x
+69 order matrix of data. We tried implementing a simple singular value decomposition (SVD) algorithm on the order-by-order
+RVs. We also tried a multi-parameter analysis on all of the Gaussian CCF fit parameters EXCEPT the RV (scaled by the variance
+of the parameter).
 
+This code is in the main wobble.py module, commits c. 05/26/2016.
 
 OBSERVING CONDITIONS
 
+This is a really simple/dumb test, but let's see if there are any correlations between the pipeline-derived RVs and various
+measurements of observing conditions. We read airmass, SNR,* and seeing from the FITS headers and looked at Pearson
+correlation coefficients with pipeline RV. Results: there is no relationship between RV and airmass, but there does appear to
+be an anti-correlation between RV and SNR! Seeing was not measured on enough nights to get a robust result.
 
+We also tried folding the RVs on a sidereal day period to check for potential issues with the barycentric correction, but that
+seems fine.
+
+* Note on the SNR: The pipeline actually delivers one SNR measurement per order. The SNR used here was the median of those.
 
 WAVELENGTH SOLUTION
 
+Assuming that some part of the RV ``jitter'' in the time series is due to instrumental effects, the wavelength solution's
+behaviour in time should play an important role. The solution is printed in the pipeline-produced FITS headers in the form of
+keywords that give polynomial coefficients for the wave(pixel_x, order#) fit. The polynomial has order given by keyword ``CAL
+TH DEG LL'' (= 3 for all of the files I checked). Note that this solution is set by the beginning-of-night calibrations and
+does not include any secondary adjustments from the simultaneous reference lamp.
+
+Some observations: 
+- The coefficients of the wavelength solution are strongly dependent on each other, e.g. the 0th and 1st
+polynomial order coefficients are very very correlated. This makes sense because instrument resolution is a fixed quantity,
+but the fact that the 2nd and 3rd polynomial order coefficients are anti-correlated with 0th order is less obvious to me.
+- There is a correlation between pipeline RV and the 0th polynomial coefficient of the wavelength solution. Is this a
+barycentric shift effect?
