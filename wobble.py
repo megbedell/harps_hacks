@@ -34,26 +34,28 @@ if __name__ == "__main__":
     HIP54287 = rv_model.RV_Model()
     HIP54287.t = s.date - s.date[0]  # timeseries epochs
     HIP54287.get_data(s.files)  # fetch order-by-order RVs
+    HIP54287.get_drift(s.files) # fetch instrument drifts
     HIP54287.get_wavepar(s.files) # fetch wavelength solution param
     wavepar = np.delete(HIP54287.wavepar,[71, 66, 57],axis=1)  # remove the orders that have no RVs
     HIP54287.set_param()    
     
     order_time_par = HIP54287.data        
     rv = np.median(order_time_par[:,:,1], axis=1) # median of every order RV
+    rv -= HIP54287.drift*1e-3 # apply the drift correction
     print "pipeline's RV RMS = {0:.3f} m/s".format(np.std(s.rv)*1.0e3)
     print "unweighted median RV RMS = {0:.3f} m/s".format(np.std(rv)*1.0e3)
-    
-    
+
     #try weighted means
-    rv_aweight = np.average(order_time_par[:,:,1], weights=abs(order_time_par[:,:,0]), axis=1)
-    rv_a2weight = np.average(order_time_par[:,:,1], weights=(order_time_par[:,:,0])**2, axis=1)
+    rv_aweight = np.average(order_time_par[:,:,1], weights=abs(order_time_par[:,:,0]), axis=1) - HIP54287.drift*1e-3
+    rv_a2weight = np.average(order_time_par[:,:,1], weights=(order_time_par[:,:,0])**2, axis=1) - HIP54287.drift*1e-3
     print "abs(a) weighted mean RV RMS = {0:.3f} m/s".format(np.std(rv_aweight)*1.0e3)
     print "a^2 weighted mean RV RMS = {0:.3f} m/s".format(np.std(rv_a2weight)*1.0e3)
-    
+        
     rv_aweightmed = []
     for i in range(len(HIP54287.t)):
         rv_aweightmed.append(weighted_median(order_time_par[i,:,1], ws=abs(order_time_par[i,:,0])))
     #rv_aweightmed = np.apply_along_axis(weighted_median,1,order_time_par[:,:,1])
+    rv_aweightmed -= HIP54287.drift*1e-3 # apply the drift correction
     print "abs(a) weighted median RV RMS = {0:.3f} m/s".format(np.std(rv_aweightmed)*1.0e3)
     
 

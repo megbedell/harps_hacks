@@ -56,7 +56,8 @@ def read_wavepar(filename):
 
     Returns
     -------
-
+    wavepar : np.ndarray
+    a 72 x 4 array of wavelength solution parameters
     '''
     sp = fits.open(filename)
     header = sp[0].header
@@ -78,7 +79,8 @@ def read_snr(filename):
 
     Returns
     -------
-
+    snr : np.ndarray
+    SNR values taken near the center of each order
     '''
     sp = fits.open(filename)
     header = sp[0].header
@@ -89,7 +91,24 @@ def read_snr(filename):
     for i in np.nditer(snr, op_flags=['readwrite']):
         i[...] = header['HIERARCH ESO DRS SPE EXT SN{0}'.format(str(int(i)))]
     return snr
-        
+
+def read_drift(filename):
+    '''Parse simultaneous reference drift from header of a HARPS file from the ESO pipeline
+
+    Parameters
+    ----------
+    filename : string
+    name of the fits file with the data (must be ccf)
+
+    Returns
+    -------
+    drift : the value of RV drift to be subtracted from the CCF in m/s
+    '''
+    sp = fits.open(filename)
+    header = sp[0].header
+    drift = header['HIERARCH ESO DRS DRIFT RV USED']
+    return drift  # to do: fix so this works for data not in simultaneous ref mode
+       
 
 def gauss_function(x, a, x0, sigma, offset):
     '''it's a Gaussian.'''

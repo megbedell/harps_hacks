@@ -29,6 +29,15 @@ class RV_Model:
             data[i,:,:] = order_par
         
         self.data = data
+    
+    def get_drift(self,datafiles):
+        """input: a list of all HARPS pipeline CCF data product filenames.
+        saves the instrumental drift as determined by simultaneous reference
+        output self.drift: shape n_epochs array of drift"""
+        drift = np.zeros(len(datafiles))
+        for i,f in enumerate(datafiles):
+            drift[i] = read_harps.read_drift(f)
+        self.drift = drift
         
     def get_wavepar(self,datafiles):
         """input: a list of all HARPS pipeline CCF data product filenames.
