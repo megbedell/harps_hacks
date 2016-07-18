@@ -35,6 +35,7 @@ if __name__ == "__main__":
     HIP54287.t = s.date - s.date[0]  # timeseries epochs
     HIP54287.get_data(s.files)  # fetch order-by-order RVs
     HIP54287.get_wavepar(s.files) # fetch wavelength solution param
+    wavepar = np.delete(HIP54287.wavepar,[71, 66, 57],axis=1)  # remove the orders that have no RVs
     HIP54287.set_param()    
     
     order_time_par = HIP54287.data        
@@ -56,83 +57,31 @@ if __name__ == "__main__":
     print "abs(a) weighted median RV RMS = {0:.3f} m/s".format(np.std(rv_aweightmed)*1.0e3)
     
 
-    # subtract off the mean values from every time series:
-    a = np.copy(order_time_par)
-    a_rvonly = a[:,:,1] # select RVs    
-    a_rvonly -= np.repeat([np.mean(a_rvonly,axis=0)],48,axis=0)  #subtract off the mean value from each order time series
+    # multiple linear regression with wavelength par
+    m = 39  # a high-amplitude CCF order
+    v_m = HIP54287.data[:,m,1] # time-series RVs for this order
+    A_m = np.hstack((np.ones((len(HIP54287.t),1)),HIP54287.wavepar[:,m,:])) # design matrix for this order
+    x_m = np.linalg.solve(np.dot(A_m.T,A_m), np.dot(A_m.T,v_m))
     
-    # does pipeline RV correlate with the sidereal day?
-    sday = 0.99726958
-    date_fold = HIP54287.t % sday
-    plt.scatter(date_fold, (s.rv-np.mean(s.rv))*1e3)
-    plt.ylabel("Pipeline RV (m/s)")
-    plt.xlabel("Date mod 1 sidereal day")
-    plt.xlim(-0.05,0.25)
-    plt.savefig("fig/sidereal_day.png")
-    print 'Pearson R for RV & date mod sidereal = {d[0]}, p-val = {d[1]}'.format(d=pearsonr((s.rv-np.mean(s.rv))*1e3, date_fold))
+    plt.plot((v_m - v_m[0])*1e3, color='red', label='observed velocities')
+    plt.plot((np.dot(A_m,x_m)- v_m[0])*1e3, color='blue', label='predicted from wavelength param')
+    plt.xlabel('Epoch #')
+    plt.ylabel('RV (m/s)')
+    plt.legend()
+    plt.savefig('fig/regression_normalorder.png')
     plt.clf()
     
-    wavepar = np.delete(HIP54287.wavepar,[71, 66, 57],axis=1)  # remove the orders that have no RVs
-
-    # correlation between RV offset and wavelength solution parameters over time?
-    order = 39  # a high-amplitude CCF order
-    plt.scatter(HIP54287.data[:,order,1], wavepar[:,order,0])
-    plt.xlabel('RV (km/s)')
-    plt.ylabel('Wavelength parameter 0')
-    scale = (wavepar[:,order,0].max()-wavepar[:,order,0].min())/2.0
-    plt.ylim(wavepar[:,order,0].min()-scale,wavepar[:,order,0].max()+scale)
-    plt.savefig('fig/wavepar0_rv_normalorder.png')
-    plt.clf()
-    plt.scatter(HIP54287.data[:,order,1], wavepar[:,order,1])
-    plt.xlabel('RV (km/s)')
-    plt.ylabel('Wavelength parameter 1')
-    scale = (wavepar[:,order,1].max()-wavepar[:,order,1].min())/2.0
-    plt.ylim(wavepar[:,order,1].min()-scale,wavepar[:,order,1].max()+scale)
-    plt.savefig('fig/wavepar1_rv_normalorder.png')
-    plt.clf()    
-    plt.scatter(HIP54287.data[:,order,1], wavepar[:,order,2])
-    plt.xlabel('RV (km/s)')
-    plt.ylabel('Wavelength parameter 2')
-    scale = (wavepar[:,order,2].max()-wavepar[:,order,2].min())/2.0
-    plt.ylim(wavepar[:,order,2].min()-scale,wavepar[:,order,2].max()+scale)
-    plt.savefig('fig/wavepar2_rv_normalorder.png')
-    plt.clf()    
-    plt.scatter(HIP54287.data[:,order,1], wavepar[:,order,3])
-    plt.xlabel('RV (km/s)')
-    plt.ylabel('Wavelength parameter 3')
-    scale = (wavepar[:,order,3].max()-wavepar[:,order,3].min())/2.0
-    plt.ylim(wavepar[:,order,3].min()-scale,wavepar[:,order,3].max()+scale)
-    plt.savefig('fig/wavepar3_rv_normalorder.png')
+    m = 3 # a wonky offset order
+    v_m = HIP54287.data[:,m,1] # time-series RVs for this order
+    A_m = np.hstack((np.ones((len(HIP54287.t),1)),HIP54287.wavepar[:,m,:])) # design matrix for this order
+    x_m = np.linalg.solve(np.dot(A_m.T,A_m), np.dot(A_m.T,v_m))
+    
+    plt.plot((v_m - v_m[0])*1e3, color='red', label='observed velocities')
+    plt.plot((np.dot(A_m,x_m)- v_m[0])*1e3, color='blue', label='predicted from wavelength param')
+    plt.xlabel('Epoch #')
+    plt.ylabel('RV (m/s)')
+    plt.legend()
+    plt.savefig('fig/regression_weirdorder.png')
     plt.clf()
     
-    order = 3 # a wonky offset order
-    
-    plt.scatter(HIP54287.data[:,order,1], wavepar[:,order,0])
-    plt.xlabel('RV (km/s)')
-    plt.ylabel('Wavelength parameter 0')
-    scale = (wavepar[:,order,0].max()-wavepar[:,order,0].min())/2.0
-    plt.ylim(wavepar[:,order,0].min()-scale,wavepar[:,order,0].max()+scale)
-    plt.savefig('fig/wavepar0_rv_weirdorder.png')
-    plt.clf()
-    plt.scatter(HIP54287.data[:,order,1], wavepar[:,order,1])
-    plt.xlabel('RV (km/s)')
-    plt.ylabel('Wavelength parameter 1')
-    scale = (wavepar[:,order,1].max()-wavepar[:,order,1].min())/2.0
-    plt.ylim(wavepar[:,order,1].min()-scale,wavepar[:,order,1].max()+scale)
-    plt.savefig('fig/wavepar1_rv_weirdorder.png')
-    plt.clf()    
-    plt.scatter(HIP54287.data[:,order,1], wavepar[:,order,2])
-    plt.xlabel('RV (km/s)')
-    plt.ylabel('Wavelength parameter 2')
-    scale = (wavepar[:,order,2].max()-wavepar[:,order,2].min())/2.0
-    plt.ylim(wavepar[:,order,2].min()-scale,wavepar[:,order,2].max()+scale)
-    plt.savefig('fig/wavepar2_rv_weirdorder.png')
-    plt.clf()    
-    plt.scatter(HIP54287.data[:,order,1], wavepar[:,order,3])
-    plt.xlabel('RV (km/s)')
-    plt.ylabel('Wavelength parameter 3')
-    scale = (wavepar[:,order,3].max()-wavepar[:,order,3].min())/2.0
-    plt.ylim(wavepar[:,order,3].min()-scale,wavepar[:,order,3].max()+scale)
-    plt.savefig('fig/wavepar3_rv_weirdorder.png')
-    plt.clf()
     
