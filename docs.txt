@@ -37,7 +37,8 @@ Gaussian to the co-added CCF, using all 161 points in the fit (which includes a 
 fitting Gaussians to each order's CCF and to the co-added CCF using varying numbers of points. Plotting the resulting standard
 deviation among a time series of 48 measurements of an RV-quiet star as a function of how many points were used in the
 Gaussian fit showed that using 20 points on either side of the minimum gives the lowest RV dispersion, so this was adopted for
-all subsequent Gaussian fits to the CCFs.
+all subsequent Gaussian fits to the CCFs. The Gaussian fit yields the following parameters for each CCF: amplitude, mean,
+FWHM, and y-offset. The mean is taken as the RV, and the other parameters may be used in estimating the uncertainty of the RV.
 
 We also tried doing a simple parabolic interpolation rather than a Gaussian fit. This gave worse results in terms of RV
 dispersion regardless of how many CCF points were used in the fit.
@@ -56,8 +57,8 @@ PCA/SVD
 
 The general idea here is to treat each order's RV measurement as a separate time series and look for trends in this N_epoch x
 69 order matrix of data. We tried implementing a simple singular value decomposition (SVD) algorithm on the order-by-order
-RVs. We also tried a multi-parameter analysis on all of the Gaussian CCF fit parameters EXCEPT the RV (scaled by the variance
-of the parameter).
+RVs. We also tried a multi-parameter analysis on all other Gaussian CCF fit parameters excluding the RV (scaled by the 
+variance of the parameter).
 
 This code is in the main wobble.py module, commits c. 05/26/2016.
 
@@ -71,19 +72,29 @@ be an anti-correlation between RV and SNR! Seeing was not measured on enough nig
 We also tried folding the RVs on a sidereal day period to check for potential issues with the barycentric correction, but that
 seems fine.
 
-* Note on the SNR: The pipeline actually delivers one SNR measurement per order. The SNR used here was the median of those.
+This code is in the main wobble.py module, commit on 06/15/2016.
+
+* Note on the SNR: The pipeline actually delivers one SNR measurement per order per epoch. The SNR used here is the median
+  across orders.
 
 WAVELENGTH SOLUTION
 
-Assuming that some part of the RV ``jitter'' in the time series is due to instrumental effects, the wavelength solution's
-behaviour in time should play an important role. The solution is printed in the pipeline-produced FITS headers in the form of
-keywords that give polynomial coefficients for the wave(pixel_x, order#) fit. The polynomial has order given by keyword ``CAL
-TH DEG LL'' (= 3 for all of the files I checked). Note that this solution is set by the beginning-of-night calibrations and
-does not include any secondary adjustments from the simultaneous reference lamp.
+Assuming that some part of the RV ``jitter'' in the time series is due to instrumental effects and not a real shift in the
+stellar spectrum, the wavelength solution's behaviour in time should play an important role. The solution is printed in the
+pipeline-produced FITS headers in the form of keywords that give polynomial coefficients for the wave(pixel_x, order#) fit.
+The polynomial has a degree given by keyword ``CAL TH DEG LL'' (= 3 for all of the files I checked). Note that this solution is
+set by the beginning-of-night calibrations and does not include any secondary adjustments from the simultaneous reference lamp.
 
 Some observations: 
 - The coefficients of the wavelength solution are strongly dependent on each other, e.g. the 0th and 1st
 polynomial order coefficients are very very correlated. This makes sense because instrument resolution is a fixed quantity,
 but the fact that the 2nd and 3rd polynomial order coefficients are anti-correlated with 0th order is less obvious to me.
 - There is a correlation between pipeline RV and the 0th polynomial coefficient of the wavelength solution. Is this a
-barycentric shift effect?
+barycentric shift effect? Probably not, if pipeline RVs were properly corrected.
+
+MULTIPLE REGRESSION ON WAVELENGTH SOLUTIONS
+
+Now we try taking the time series information of wavelength solution parameters for each echelle order m as a design matrix
+A_m with dimensions 5 by N_epochs. For a single order, we're treating the wavelength solution parameters as predictors that
+determine the response measurement RV, and implicitly assuming that it's a linear relationship. With some linear algebra
+magic, we can obtain a best-fit model of time-series RVs for a single echelle order.
