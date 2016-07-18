@@ -63,12 +63,20 @@ if __name__ == "__main__":
     m = 39  # a high-amplitude CCF order
     v_m = HIP54287.data[:,m,1] # time-series RVs for this order
     N = len(HIP54287.t)
-    A_m = np.hstack((np.ones((N,1)),HIP54287.wavepar[:,m,:])) # design matrix for this order
-    v_pred = np.zeros(N)
+    n_pred = 5 # number of predictors, including intercept term
+    A_m = np.ones((N,n_pred)) # design matrix for this order
+    A_m[:,1:] = HIP54287.wavepar[:,m,:]
+    x_m = np.zeros((N,n_pred))
+    l = 0.1  # regularization parameter
+    reg_matrix = np.identity(n_pred)  # regularization...
+    reg_matrix[0] = 0                 # ... matrix
+    v_pred = np.zeros(N) # predicted RVs
     for i in range(N):
         A_noi = np.delete(A_m, i, axis=0)
         v_noi = np.delete(v_m, i)
-        x_noi = np.linalg.solve(np.dot(A_noi.T,A_noi), np.dot(A_noi.T,v_noi)) # best-fit coeffs excluding i-th epoch
+        x_noi = np.linalg.solve(np.dot(A_noi.T,A_noi)+l*reg_matrix, \
+                np.dot(A_noi.T,v_noi)) # best-fit coeffs excluding i-th epoch
+        x_m[i,:] = x_noi
         v_pred[i] = np.dot(A_m[i,:], x_noi) # leave-one-out regression prediction for this epoch
         
     
@@ -80,17 +88,38 @@ if __name__ == "__main__":
     plt.savefig('fig/regression_normalorder.png')
     plt.clf()
     
+    plt.plot(x_m[:,0]/np.max(abs(x_m[:,0])), label='x_0')
+    plt.plot(x_m[:,1]/np.max(abs(x_m[:,1])), label='x_1')
+    plt.plot(x_m[:,2]/np.max(abs(x_m[:,2])), label='x_2')
+    plt.plot(x_m[:,3]/np.max(abs(x_m[:,3])), label='x_3')
+    plt.plot(x_m[:,4]/np.max(abs(x_m[:,4])), label='x_4')
+    plt.legend()
+    plt.savefig('fig/regression_coeff_normalorder.png')
+    plt.clf()
+    
+    print "RMS of order {0} RVs before regression: {1:.2f} m/s".format(m, np.std(v_m)*1.0e3)
+    print "RMS of order {0} residuals to regression: {1:.2f} m/s".format(m, np.std(v_m - v_pred)*1.0e3)
+    
+    
     m = 3 # a wonky offset order
     v_m = HIP54287.data[:,m,1] # time-series RVs for this order
     N = len(HIP54287.t)
-    A_m = np.hstack((np.ones((N,1)),HIP54287.wavepar[:,m,:])) # design matrix for this order
-    v_pred = np.zeros(N)
+    n_pred = 5 # number of predictors, including intercept term
+    A_m = np.ones((N,n_pred)) # design matrix for this order
+    A_m[:,1:] = HIP54287.wavepar[:,m,:]
+    x_m = np.zeros((N,n_pred))
+    l = 0.1  # regularization parameter
+    reg_matrix = np.identity(n_pred)  # regularization...
+    reg_matrix[0] = 0                 # ... matrix
+    v_pred = np.zeros(N) # predicted RVs
     for i in range(N):
         A_noi = np.delete(A_m, i, axis=0)
         v_noi = np.delete(v_m, i)
-        x_noi = np.linalg.solve(np.dot(A_noi.T,A_noi), np.dot(A_noi.T,v_noi)) # best-fit coeffs excluding i-th epoch
+        x_noi = np.linalg.solve(np.dot(A_noi.T,A_noi)+l*reg_matrix, \
+                np.dot(A_noi.T,v_noi)) # best-fit coeffs excluding i-th epoch
+        x_m[i,:] = x_noi
         v_pred[i] = np.dot(A_m[i,:], x_noi) # leave-one-out regression prediction for this epoch
-       
+         
     plt.plot((v_m - v_m[0])*1e3, color='red', label='observed velocities')
     plt.plot((v_pred - v_m[0])*1e3, color='blue', label='predicted from wavelength param')
     plt.xlabel('Epoch #')
@@ -99,4 +128,15 @@ if __name__ == "__main__":
     plt.savefig('fig/regression_weirdorder.png')
     plt.clf()
     
+    plt.plot(x_m[:,0]/np.max(abs(x_m[:,0])), label='x_0')
+    plt.plot(x_m[:,1]/np.max(abs(x_m[:,1])), label='x_1')
+    plt.plot(x_m[:,2]/np.max(abs(x_m[:,2])), label='x_2')
+    plt.plot(x_m[:,3]/np.max(abs(x_m[:,3])), label='x_3')
+    plt.plot(x_m[:,4]/np.max(abs(x_m[:,4])), label='x_4')
+    plt.legend()
+    plt.savefig('fig/regression_coeff_weirdorder.png')
+    plt.clf()
+    
+    print "RMS of order {0} RVs before regression: {1:.2f} m/s".format(m, np.std(v_m)*1.0e3)
+    print "RMS of order {0} residuals to regression: {1:.2f} m/s".format(m, np.std(v_m - v_pred)*1.0e3)
     
