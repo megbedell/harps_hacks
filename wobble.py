@@ -82,10 +82,11 @@ if __name__ == "__main__":
         
     
     plt.plot((v_m - v_m[0])*1e3, color='red', label='observed velocities')
-    plt.plot((v_pred - v_m[0])*1e3, color='blue', label='predicted from wavelength param')
+    plt.plot((v_pred - v_m[0])*1e3, color='blue', label='predicted from wavelength param & drift')
     plt.xlabel('Epoch #')
     plt.ylabel('RV (m/s)')
     plt.legend()
+    plt.title('linear regression with regularization param = {0}'.format(l))
     plt.savefig('fig/regression_normalorder.png')
     plt.clf()
     
@@ -120,10 +121,11 @@ if __name__ == "__main__":
         v_pred[i] = np.dot(A_m[i,:], x_noi) # leave-one-out regression prediction for this epoch
          
     plt.plot((v_m - v_m[0])*1e3, color='red', label='observed velocities')
-    plt.plot((v_pred - v_m[0])*1e3, color='blue', label='predicted from wavelength param')
+    plt.plot((v_pred - v_m[0])*1e3, color='blue', label='predicted from wavelength param & drift')
     plt.xlabel('Epoch #')
     plt.ylabel('RV (m/s)')
     plt.legend()
+    plt.title('linear regression with regularization param = {0}'.format(l))
     plt.savefig('fig/regression_weirdorder.png')
     plt.clf()
     
