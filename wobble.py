@@ -63,11 +63,12 @@ if __name__ == "__main__":
     m = 39  # a high-amplitude CCF order
     v_m = HIP54287.data[:,m,1] # time-series RVs for this order
     N = len(HIP54287.t)
-    n_pred = 5 # number of predictors, including intercept term
+    n_pred = 6 # number of predictors, including intercept term
     A_m = np.ones((N,n_pred)) # design matrix for this order
-    A_m[:,1:] = HIP54287.wavepar[:,m,:]
+    A_m[:,1:5] = HIP54287.wavepar[:,m,:]
+    A_m[:,5] = HIP54287.drift
     x_m = np.zeros((N,n_pred))
-    l = 0.1  # regularization parameter
+    l = 1.0  # regularization parameter
     reg_matrix = np.identity(n_pred)  # regularization...
     reg_matrix[0] = 0                 # ... matrix
     v_pred = np.zeros(N) # predicted RVs
@@ -88,11 +89,8 @@ if __name__ == "__main__":
     plt.savefig('fig/regression_normalorder.png')
     plt.clf()
     
-    plt.plot(x_m[:,0]/np.max(abs(x_m[:,0])), label='x_0')
-    plt.plot(x_m[:,1]/np.max(abs(x_m[:,1])), label='x_1')
-    plt.plot(x_m[:,2]/np.max(abs(x_m[:,2])), label='x_2')
-    plt.plot(x_m[:,3]/np.max(abs(x_m[:,3])), label='x_3')
-    plt.plot(x_m[:,4]/np.max(abs(x_m[:,4])), label='x_4')
+    for i in range(n_pred):
+        plt.plot(x_m[:,i]/np.max(abs(x_m[:,i])), label=r'x_{0}'.format(i))
     plt.legend()
     plt.savefig('fig/regression_coeff_normalorder.png')
     plt.clf()
@@ -104,11 +102,12 @@ if __name__ == "__main__":
     m = 3 # a wonky offset order
     v_m = HIP54287.data[:,m,1] # time-series RVs for this order
     N = len(HIP54287.t)
-    n_pred = 5 # number of predictors, including intercept term
+    n_pred = 6 # number of predictors, including intercept term
     A_m = np.ones((N,n_pred)) # design matrix for this order
-    A_m[:,1:] = HIP54287.wavepar[:,m,:]
+    A_m[:,1:5] = HIP54287.wavepar[:,m,:]
+    A_m[:,5] = HIP54287.drift
     x_m = np.zeros((N,n_pred))
-    l = 0.1  # regularization parameter
+    l = 1.0  # regularization parameter
     reg_matrix = np.identity(n_pred)  # regularization...
     reg_matrix[0] = 0                 # ... matrix
     v_pred = np.zeros(N) # predicted RVs
@@ -128,11 +127,8 @@ if __name__ == "__main__":
     plt.savefig('fig/regression_weirdorder.png')
     plt.clf()
     
-    plt.plot(x_m[:,0]/np.max(abs(x_m[:,0])), label='x_0')
-    plt.plot(x_m[:,1]/np.max(abs(x_m[:,1])), label='x_1')
-    plt.plot(x_m[:,2]/np.max(abs(x_m[:,2])), label='x_2')
-    plt.plot(x_m[:,3]/np.max(abs(x_m[:,3])), label='x_3')
-    plt.plot(x_m[:,4]/np.max(abs(x_m[:,4])), label='x_4')
+    for i in range(n_pred):
+        plt.plot(x_m[:,i]/np.max(abs(x_m[:,i])), label=r'x_{0}'.format(i))
     plt.legend()
     plt.savefig('fig/regression_coeff_weirdorder.png')
     plt.clf()
