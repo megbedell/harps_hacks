@@ -62,11 +62,18 @@ if __name__ == "__main__":
     # multiple linear regression with wavelength par
     m = 39  # a high-amplitude CCF order
     v_m = HIP54287.data[:,m,1] # time-series RVs for this order
-    A_m = np.hstack((np.ones((len(HIP54287.t),1)),HIP54287.wavepar[:,m,:])) # design matrix for this order
-    x_m = np.linalg.solve(np.dot(A_m.T,A_m), np.dot(A_m.T,v_m))
+    N = len(HIP54287.t)
+    A_m = np.hstack((np.ones((N,1)),HIP54287.wavepar[:,m,:])) # design matrix for this order
+    v_pred = np.zeros(N)
+    for i in range(N):
+        A_noi = np.delete(A_m, i, axis=0)
+        v_noi = np.delete(v_m, i)
+        x_noi = np.linalg.solve(np.dot(A_noi.T,A_noi), np.dot(A_noi.T,v_noi)) # best-fit coeffs excluding i-th epoch
+        v_pred[i] = np.dot(A_m[i,:], x_noi) # leave-one-out regression prediction for this epoch
+        
     
     plt.plot((v_m - v_m[0])*1e3, color='red', label='observed velocities')
-    plt.plot((np.dot(A_m,x_m)- v_m[0])*1e3, color='blue', label='predicted from wavelength param')
+    plt.plot((v_pred - v_m[0])*1e3, color='blue', label='predicted from wavelength param')
     plt.xlabel('Epoch #')
     plt.ylabel('RV (m/s)')
     plt.legend()
@@ -75,11 +82,17 @@ if __name__ == "__main__":
     
     m = 3 # a wonky offset order
     v_m = HIP54287.data[:,m,1] # time-series RVs for this order
-    A_m = np.hstack((np.ones((len(HIP54287.t),1)),HIP54287.wavepar[:,m,:])) # design matrix for this order
-    x_m = np.linalg.solve(np.dot(A_m.T,A_m), np.dot(A_m.T,v_m))
-    
+    N = len(HIP54287.t)
+    A_m = np.hstack((np.ones((N,1)),HIP54287.wavepar[:,m,:])) # design matrix for this order
+    v_pred = np.zeros(N)
+    for i in range(N):
+        A_noi = np.delete(A_m, i, axis=0)
+        v_noi = np.delete(v_m, i)
+        x_noi = np.linalg.solve(np.dot(A_noi.T,A_noi), np.dot(A_noi.T,v_noi)) # best-fit coeffs excluding i-th epoch
+        v_pred[i] = np.dot(A_m[i,:], x_noi) # leave-one-out regression prediction for this epoch
+       
     plt.plot((v_m - v_m[0])*1e3, color='red', label='observed velocities')
-    plt.plot((np.dot(A_m,x_m)- v_m[0])*1e3, color='blue', label='predicted from wavelength param')
+    plt.plot((v_pred - v_m[0])*1e3, color='blue', label='predicted from wavelength param')
     plt.xlabel('Epoch #')
     plt.ylabel('RV (m/s)')
     plt.legend()
