@@ -18,14 +18,15 @@ class RV_Model:
     def __call__(self):
         return self.get_lnprob()
     
-    def get_data(self,datafiles, mask_inner=0, debug=False):
+    def get_data(self,datafiles, n_points=20, mask_inner=0, debug=False):
         """input: a list of all HARPS pipeline CCF data product filenames.
         fits Gaussians to the CCFs and outputs RV per order
+        for keyword meanings, see read_harps.rv_gaussian_fit
         output self.data: shape n_epochs x 69 orders x 4 Gaussian fit param"""
         data = np.zeros((len(datafiles), 69, 4))
         for i,f in enumerate(datafiles):
             velocity, ccf, pipeline_rv = read_harps.read_ccfs(f)
-            order_par = read_harps.rv_gaussian_fit(velocity, ccf, n_points=20, mask_inner=mask_inner, debug=debug) # chose n_points=20 from the median order RMS plot sent to Hogg on May 13 
+            order_par = read_harps.rv_gaussian_fit(velocity, ccf, n_points=n_points, mask_inner=mask_inner, debug=debug) # chose n_points=20 from the median order RMS plot sent to Hogg on May 13 
             data[i,:,:] = order_par
         
         self.data = data

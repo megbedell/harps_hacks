@@ -60,13 +60,15 @@ if __name__ == "__main__":
     #try refitting RVs with central CCF points excluded
     rvmean_excluded = np.zeros((10, len(HIP54287.t)))
     for i in range(0,10):
-        HIP54287.get_data(s.files, mask_inner=i)
+        HIP54287.get_data(s.files, n_points=20+i, mask_inner=i)
         rvmean_excluded[i,:] = np.average(HIP54287.data[:,:,1], weights=abs(HIP54287.data[:,:,0]), axis=1) - HIP54287.drift*1e-3
     plt.scatter(np.arange(10),np.std(rvmean_excluded,axis=1)*1.0e3)
     plt.ylabel('RMS of weighted mean RVs (m/s)')
     plt.xlabel('# central CCF points excluded')
     plt.xlim([-0.5,9.5])
     plt.savefig('fig/excludecentral.png')
+    pdb.set_trace()
+    plt.clf()
 
     # multiple linear regression with wavelength par
     m = 39  # a high-amplitude CCF order
