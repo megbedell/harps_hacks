@@ -39,25 +39,34 @@ if __name__ == "__main__":
     wavepar = np.delete(HIP54287.wavepar,[71, 66, 57],axis=1)  # remove the orders that have no RVs
     HIP54287.set_param()    
     
-    order_time_par = HIP54287.data        
-    rv = np.median(order_time_par[:,:,1], axis=1) # median of every order RV
+    rv = np.median(HIP54287.data[:,:,1], axis=1) # median of every order RV
     rv -= HIP54287.drift*1e-3 # apply the drift correction
     print "pipeline's RV RMS = {0:.3f} m/s".format(np.std(s.rv)*1.0e3)
     print "unweighted median RV RMS = {0:.3f} m/s".format(np.std(rv)*1.0e3)
 
     #try weighted means
-    rv_aweight = np.average(order_time_par[:,:,1], weights=abs(order_time_par[:,:,0]), axis=1) - HIP54287.drift*1e-3
-    rv_a2weight = np.average(order_time_par[:,:,1], weights=(order_time_par[:,:,0])**2, axis=1) - HIP54287.drift*1e-3
+    rv_aweight = np.average(HIP54287.data[:,:,1], weights=abs(HIP54287.data[:,:,0]), axis=1) - HIP54287.drift*1e-3
+    rv_a2weight = np.average(HIP54287.data[:,:,1], weights=(HIP54287.data[:,:,0])**2, axis=1) - HIP54287.drift*1e-3
     print "abs(a) weighted mean RV RMS = {0:.3f} m/s".format(np.std(rv_aweight)*1.0e3)
     print "a^2 weighted mean RV RMS = {0:.3f} m/s".format(np.std(rv_a2weight)*1.0e3)
         
     rv_aweightmed = []
     for i in range(len(HIP54287.t)):
-        rv_aweightmed.append(weighted_median(order_time_par[i,:,1], ws=abs(order_time_par[i,:,0])))
-    #rv_aweightmed = np.apply_along_axis(weighted_median,1,order_time_par[:,:,1])
+        rv_aweightmed.append(weighted_median(HIP54287.data[i,:,1], ws=abs(HIP54287.data[i,:,0])))
+    #rv_aweightmed = np.apply_along_axis(weighted_median,1,HIP54287.data[:,:,1])
     rv_aweightmed -= HIP54287.drift*1e-3 # apply the drift correction
     print "abs(a) weighted median RV RMS = {0:.3f} m/s".format(np.std(rv_aweightmed)*1.0e3)
     
+    #try refitting RVs with central CCF points excluded
+    rvmean_excluded = np.zeros((10, len(HIP54287.t)))
+    for i in range(0,10):
+        HIP54287.get_data(s.files, mask_inner=i)
+        rvmean_excluded[i,:] = np.average(HIP54287.data[:,:,1], weights=abs(HIP54287.data[:,:,0]), axis=1) - HIP54287.drift*1e-3
+    plt.scatter(np.arange(10),np.std(rvmean_excluded,axis=1)*1.0e3)
+    plt.ylabel('RMS of weighted mean RVs (m/s)')
+    plt.xlabel('# central CCF points excluded')
+    plt.xlim([-0.5,9.5])
+    plt.savefig('fig/excludecentral.png')
 
     # multiple linear regression with wavelength par
     m = 39  # a high-amplitude CCF order
