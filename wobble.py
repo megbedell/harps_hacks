@@ -57,101 +57,24 @@ if __name__ == "__main__":
     rv_aweightmed -= HIP54287.drift*1e-3 # apply the drift correction
     print "abs(a) weighted median RV RMS = {0:.3f} m/s".format(np.std(rv_aweightmed)*1.0e3)
     
-    #try refitting RVs with central CCF points excluded
-    HIP54287.get_data(s.files, n_points=20, mask_inner=4)
-    rv_w = np.copy(HIP54287.data[:,:,1])  # RVs from CCF wings
-    HIP54287.get_data(s.files, n_points=4, mask_inner=0)
-    rv_c = np.copy(HIP54287.data[:,:,1])  # RVs from CCF centers
-    rv_diff = (rv_w - rv_c)/2.0
-    rv_avg = (rv_w + rv_c)/2.0
-    colors = iter(cm.gist_rainbow(np.linspace(0, 1, 69)))    
-    for i in range(69): plt.scatter(rv_avg[:,i], rv_diff[:,i], c=next(colors))
-    plt.ylabel(r'$(RV_c - RV_w)$/2')
-    plt.xlabel(r'$(RV_c + RV_w)$/2')
-    sm = plt.cm.ScalarMappable(cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=69))
-    sm._A = []
-    plt.colorbar(sm)
-    #plt.xlim([-0.5,9.5])
-    plt.savefig('fig/CCF_wingsvscenter.png')
-    pdb.set_trace()
-    plt.clf()
-
-    # multiple linear regression with wavelength par
-    m = 39  # a high-amplitude CCF order
-    v_m = HIP54287.data[:,m,1] # time-series RVs for this order
-    N = len(HIP54287.t)
-    n_pred = 6 # number of predictors, including intercept term
-    A_m = np.ones((N,n_pred)) # design matrix for this order
-    A_m[:,1:5] = HIP54287.wavepar[:,m,:]
-    A_m[:,5] = HIP54287.drift
-    x_m = np.zeros((N,n_pred))
-    l = 1.0  # regularization parameter
-    reg_matrix = np.identity(n_pred)  # regularization...
-    reg_matrix[0] = 0                 # ... matrix
-    v_pred = np.zeros(N) # predicted RVs
-    for i in range(N):
-        A_noi = np.delete(A_m, i, axis=0)
-        v_noi = np.delete(v_m, i)
-        x_noi = np.linalg.solve(np.dot(A_noi.T,A_noi)+l*reg_matrix, \
-                np.dot(A_noi.T,v_noi)) # best-fit coeffs excluding i-th epoch
-        x_m[i,:] = x_noi
-        v_pred[i] = np.dot(A_m[i,:], x_noi) # leave-one-out regression prediction for this epoch
+    #fitting an individual line:
+    wave_c = 6123.34
+    #wave_c = 6043.2
+    #wave_c = 6379.42
+    rv_one = np.zeros(len(s.files))
+    for i,f in enumerate(s.files):
+        # read in the spectrum
+        spec_file = str.replace(f, 'ccf_G2', 's1d')
+        sp = fits.open(spec_file)
+        header = sp[0].header
+        n_wave = header['NAXIS1']
+        crval1 = header['CRVAL1']
+        cdelt1 = header['CDELT1']
+        index = np.arange(n_wave)
+        wave = crval1 + index*cdelt1
+        spec = sp[0].data
+        # fit the line
+        rv_one[i] = read_harps.rv_oneline_fit(wave,spec,wave_c)
+    print "RMS on single-line RV (wavlength {0:.1f} A): {1:.2f} m/s".format(wave_c,np.std(rv_one)*1.0e3)
+    
         
-    
-    plt.plot((v_m - v_m[0])*1e3, color='red', label='observed velocities')
-    plt.plot((v_pred - v_m[0])*1e3, color='blue', label='predicted from wavelength param & drift')
-    plt.xlabel('Epoch #')
-    plt.ylabel('RV (m/s)')
-    plt.legend()
-    plt.title('linear regression with regularization param = {0}'.format(l))
-    plt.savefig('fig/regression_normalorder.png')
-    plt.clf()
-    
-    for i in range(n_pred):
-        plt.plot(x_m[:,i]/np.max(abs(x_m[:,i])), label=r'x_{0}'.format(i))
-    plt.legend()
-    plt.savefig('fig/regression_coeff_normalorder.png')
-    plt.clf()
-    
-    print "RMS of order {0} RVs before regression: {1:.2f} m/s".format(m, np.std(v_m)*1.0e3)
-    print "RMS of order {0} residuals to regression: {1:.2f} m/s".format(m, np.std(v_m - v_pred)*1.0e3)
-    
-    
-    m = 3 # a wonky offset order
-    v_m = HIP54287.data[:,m,1] # time-series RVs for this order
-    N = len(HIP54287.t)
-    n_pred = 6 # number of predictors, including intercept term
-    A_m = np.ones((N,n_pred)) # design matrix for this order
-    A_m[:,1:5] = HIP54287.wavepar[:,m,:]
-    A_m[:,5] = HIP54287.drift
-    x_m = np.zeros((N,n_pred))
-    l = 1.0  # regularization parameter
-    reg_matrix = np.identity(n_pred)  # regularization...
-    reg_matrix[0] = 0                 # ... matrix
-    v_pred = np.zeros(N) # predicted RVs
-    for i in range(N):
-        A_noi = np.delete(A_m, i, axis=0)
-        v_noi = np.delete(v_m, i)
-        x_noi = np.linalg.solve(np.dot(A_noi.T,A_noi)+l*reg_matrix, \
-                np.dot(A_noi.T,v_noi)) # best-fit coeffs excluding i-th epoch
-        x_m[i,:] = x_noi
-        v_pred[i] = np.dot(A_m[i,:], x_noi) # leave-one-out regression prediction for this epoch
-         
-    plt.plot((v_m - v_m[0])*1e3, color='red', label='observed velocities')
-    plt.plot((v_pred - v_m[0])*1e3, color='blue', label='predicted from wavelength param & drift')
-    plt.xlabel('Epoch #')
-    plt.ylabel('RV (m/s)')
-    plt.legend()
-    plt.title('linear regression with regularization param = {0}'.format(l))
-    plt.savefig('fig/regression_weirdorder.png')
-    plt.clf()
-    
-    for i in range(n_pred):
-        plt.plot(x_m[:,i]/np.max(abs(x_m[:,i])), label=r'x_{0}'.format(i))
-    plt.legend()
-    plt.savefig('fig/regression_coeff_weirdorder.png')
-    plt.clf()
-    
-    print "RMS of order {0} RVs before regression: {1:.2f} m/s".format(m, np.std(v_m)*1.0e3)
-    print "RMS of order {0} residuals to regression: {1:.2f} m/s".format(m, np.std(v_m - v_pred)*1.0e3)
-    

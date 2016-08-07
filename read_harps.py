@@ -249,6 +249,8 @@ def rv_gaussian_fit(velocity, ccf, n_points=20, mask_inner=0, debug=False, all=F
     mask_inner : int
     number of points to ignore on either side of the minimum when fitting (including minimum itself)
     (if 1, ignore the minimum point only)
+    debug : boolean
+    if True then include print-outs and show a plot
     all : boolean
     if True then include the three non-functional orders and the co-added "order"
 
@@ -290,3 +292,42 @@ def rv_gaussian_fit(velocity, ccf, n_points=20, mask_inner=0, debug=False, all=F
     if not all:
         order_par = np.delete(order_par, [57,66,71,72], axis=0)
     return order_par
+
+def rv_oneline_fit(wave, spec, wave_c, debug=False):
+    '''Read in the pipeline CCF data product and return Gaussian-fitted RV for each order
+    
+    Parameters
+    ----------
+    wave : np.ndarray
+    wavelengths of the spectrum
+    spec : np.ndarray
+    spectrum
+    wave_c : float
+    starting guess of the line's central wavelength
+    debug : boolean
+    if True then include print-outs and show a plot
+    
+    Returns
+    -------
+    rv : np.float64
+    RV shift of the line
+    '''
+    
+    ind = np.where(np.logical_and(wave >= wave_c - 1.5, wave <= wave_c + 1.5)) # selected region of spectrum
+    wave = wave[ind] # trim to smaller size for fitting
+    spec = spec[ind]
+    # fit a Gaussian:
+    height = max(spec) - min(spec)
+    p0 = [-height, wave_c, 0.3, max(spec)]
+    popt, pcov = curve_fit(gauss_function, wave, spec, p0=p0, maxfev=10000)
+    wave_obs = popt[1]
+    # get Doppler shift:
+    c = 299792.458 # km/s
+    rv = (wave_obs - wave_c)/wave_c * c
+    if debug:
+        print "solution param",popt
+        plt.scatter(wave,spec)
+        x = np.arange(10000)/3000.0 + wave[0]
+        plt.plot(x, gauss_function(x,popt[0],popt[1],popt[2],popt[3]))
+        plt.show()
+    return rv
