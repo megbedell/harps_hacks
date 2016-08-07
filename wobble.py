@@ -58,15 +58,21 @@ if __name__ == "__main__":
     print "abs(a) weighted median RV RMS = {0:.3f} m/s".format(np.std(rv_aweightmed)*1.0e3)
     
     #try refitting RVs with central CCF points excluded
-    rvmean_excluded = np.zeros((10, len(HIP54287.t)))
-    for i in range(0,10):
-        HIP54287.get_data(s.files, n_points=20+i, mask_inner=i)
-        rvmean_excluded[i,:] = np.average(HIP54287.data[:,:,1], weights=abs(HIP54287.data[:,:,0]), axis=1) - HIP54287.drift*1e-3
-    plt.scatter(np.arange(10),np.std(rvmean_excluded,axis=1)*1.0e3)
-    plt.ylabel('RMS of weighted mean RVs (m/s)')
-    plt.xlabel('# central CCF points excluded')
-    plt.xlim([-0.5,9.5])
-    plt.savefig('fig/excludecentral.png')
+    HIP54287.get_data(s.files, n_points=20, mask_inner=4)
+    rv_w = np.copy(HIP54287.data[:,:,1])  # RVs from CCF wings
+    HIP54287.get_data(s.files, n_points=4, mask_inner=0)
+    rv_c = np.copy(HIP54287.data[:,:,1])  # RVs from CCF centers
+    rv_diff = (rv_w - rv_c)/2.0
+    rv_avg = (rv_w + rv_c)/2.0
+    colors = iter(cm.gist_rainbow(np.linspace(0, 1, 69)))    
+    for i in range(69): plt.scatter(rv_avg[:,i], rv_diff[:,i], c=next(colors))
+    plt.ylabel(r'$(RV_c - RV_w)$/2')
+    plt.xlabel(r'$(RV_c + RV_w)$/2')
+    sm = plt.cm.ScalarMappable(cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=69))
+    sm._A = []
+    plt.colorbar(sm)
+    #plt.xlim([-0.5,9.5])
+    plt.savefig('fig/CCF_wingsvscenter.png')
     pdb.set_trace()
     plt.clf()
 
