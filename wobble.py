@@ -106,13 +106,52 @@ if __name__ == "__main__":
     plt.savefig('fig/CCF_wingsvscenter.png')
     plt.clf()
     
+    # multiple linear regression with central/outer CCF fits
+    m = 20  # a high-amplitude CCF order
+    v_m = rv_all[:,m] # time-series RVs for this order
+    N = len(HIP54287.t)
+    n_pred = 3 # number of predictors, including intercept term
+    A_m = np.ones((N,n_pred)) # design matrix for this order
+    A_m[:,1] = rv_diff[:,m]
+    A_m[:,2] = rv_avg[:,m]
+    x_m = np.zeros((N,n_pred))
+    l = 0.0  # regularization parameter
+    reg_matrix = np.identity(n_pred)  # regularization...
+    reg_matrix[0] = 0                 # ... matrix
+    v_pred = np.zeros(N) # predicted RVs
+    for i in range(N):
+        A_noi = np.delete(A_m, i, axis=0)
+        v_noi = np.delete(v_m, i)
+        x_noi = np.linalg.solve(np.dot(A_noi.T,A_noi)+l*reg_matrix, \
+                np.dot(A_noi.T,v_noi)) # best-fit coeffs excluding i-th epoch
+        x_m[i,:] = x_noi
+        v_pred[i] = np.dot(A_m[i,:], x_noi) # leave-one-out regression prediction for this epoch
+        
+    
+    plt.plot((v_m - v_m[0])*1e3, color='red', label='observed velocities')
+    plt.plot((v_pred - v_m[0])*1e3, color='blue', label='predicted from center/wing CCF differences')
+    plt.xlabel('Epoch #')
+    plt.ylabel('RV (m/s)')
+    plt.legend()
+    #plt.title('linear regression with regularization param = {0}'.format(l))
+    plt.savefig('fig/regression_o{0}ccf.png'.format(m))
+    plt.clf()
+    
+    for i in range(n_pred):
+        plt.plot(x_m[:,i]/np.max(abs(x_m[:,i])), label=r'x_{0}'.format(i))
+    plt.legend()
+    plt.xlabel('Epoch #')
+    plt.title('Leave-one-out Regression Coefficient Values')
+    plt.savefig('fig/regression_coeff_o{0}ccf.png'.format(m))
+    plt.clf()
+    
 
     #fitting an individual line:
-    wave_c = 6123.34
+    #wave_c = 6123.34
     #wave_c = 6043.2
     #wave_c = 6379.42
-    rv_one = rv_oneline(wave_c, s.files)
+    #rv_one = rv_oneline(wave_c, s.files)
 
-    print "RMS on single-line RV (wavelength {0:.1f} A): {1:.2f} m/s".format(wave_c,np.std(rv_one)*1.0e3)
+    #print "RMS on single-line RV (wavelength {0:.1f} A): {1:.2f} m/s".format(wave_c,np.std(rv_one)*1.0e3)
 
         
