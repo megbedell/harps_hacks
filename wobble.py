@@ -97,8 +97,8 @@ if __name__ == "__main__":
     rv_avg = (rv_w + rv_c)/2.0
     colors = iter(cm.gist_rainbow(np.linspace(0, 1, 69)))    
     for i in range(69): plt.scatter(rv_avg[:,i], rv_diff[:,i], c=next(colors))
-    plt.ylabel(r'$(RV_c - RV_w)$/2')
-    plt.xlabel(r'$(RV_c + RV_w)$/2')
+    plt.ylabel(r'$(RV_w - RV_c)$/2')
+    plt.xlabel(r'$(RV_w + RV_c)$/2')
     sm = plt.cm.ScalarMappable(cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=69))
     sm._A = []
     plt.colorbar(sm)
@@ -107,13 +107,13 @@ if __name__ == "__main__":
     plt.clf()
     
     # multiple linear regression with central/outer CCF fits
-    m = 20  # a high-amplitude CCF order
+    m = 47  # a high-amplitude CCF order
     v_m = rv_all[:,m] # time-series RVs for this order
     N = len(HIP54287.t)
-    n_pred = 3 # number of predictors, including intercept term
+    n_pred = 2 # number of predictors, including intercept term
     A_m = np.ones((N,n_pred)) # design matrix for this order
+    #A_m[:,1:5] = HIP54287.wavepar[:,m,:]
     A_m[:,1] = rv_diff[:,m]
-    A_m[:,2] = rv_avg[:,m]
     x_m = np.zeros((N,n_pred))
     l = 0.0  # regularization parameter
     reg_matrix = np.identity(n_pred)  # regularization...
@@ -141,9 +141,30 @@ if __name__ == "__main__":
         plt.plot(x_m[:,i]/np.max(abs(x_m[:,i])), label=r'x_{0}'.format(i))
     plt.legend()
     plt.xlabel('Epoch #')
+    plt.ylabel('Normalized coefficient')
     plt.title('Leave-one-out Regression Coefficient Values')
+    plt.ylim([-1.1,1.1])
     plt.savefig('fig/regression_coeff_o{0}ccf.png'.format(m))
     plt.clf()
+    
+    print "RMS of order {0} RVs before regression: {1:.2f} m/s".format(m, np.std(v_m)*1.0e3)
+    print "RMS of order {0} residuals to regression: {1:.2f} m/s".format(m, np.std(v_m - v_pred)*1.0e3)
+    
+    plt.scatter(rv_diff[:,m], rv_all[:,m])
+    plt.ylabel('RV from full CCF (km/s)')
+    plt.xlabel(r'$(RV_w - RV_c)$/2')
+    colors = iter(cm.gist_rainbow(np.linspace(0, 1, N)))    
+    for i in range(N):
+        x = np.arange(-0.05,0.05,0.001)
+        fit = x_m[i,0] + x_m[i,1]*x
+        plt.plot(x, fit, c=next(colors))
+    sm = plt.cm.ScalarMappable(cmap=cm.rainbow, norm=plt.Normalize(vmin=0, vmax=N))
+    sm._A = []
+    plt.colorbar(sm)
+    plt.xlim([-0.04,0.02])
+    plt.savefig('fig/regression_o{0}fit.png'.format(m))
+    plt.clf()
+    
     
 
     #fitting an individual line:
