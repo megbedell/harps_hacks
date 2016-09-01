@@ -59,40 +59,40 @@ def rv_oneline(wave_c,filenames):
 if __name__ == "__main__":
     
     data_dir = "/Users/mbedell/Documents/Research/HARPSTwins/Results/"
-    s = readsav(data_dir+'HIP54287_result.dat') 
+    s = readsav(data_dir+'HIP22263_result.dat') 
  
-    HIP54287 = rv_model.RV_Model()
-    HIP54287.t = s.date - s.date[0]  # timeseries epochs
-    HIP54287.get_data(s.files)  # fetch order-by-order RVs
-    HIP54287.get_drift(s.files) # fetch instrument drifts
-    HIP54287.get_wavepar(s.files) # fetch wavelength solution param
-    wavepar = np.delete(HIP54287.wavepar,[71, 66, 57],axis=1)  # remove the orders that have no RVs
-    HIP54287.set_param()    
+    Star = rv_model.RV_Model()
+    Star.t = s.date - s.date[0]  # timeseries epochs
+    Star.get_data(s.files)  # fetch order-by-order RVs
+    Star.get_drift(s.files) # fetch instrument drifts
+    Star.get_wavepar(s.files) # fetch wavelength solution param
+    wavepar = np.delete(Star.wavepar,[71, 66, 57],axis=1)  # remove the orders that have no RVs
+    Star.set_param()    
     
-    rv = np.median(HIP54287.data[:,:,1], axis=1) # median of every order RV
-    rv -= HIP54287.drift*1e-3 # apply the drift correction
+    rv = np.median(Star.data[:,:,1], axis=1) # median of every order RV
+    rv -= Star.drift*1e-3 # apply the drift correction
     print "pipeline's RV RMS = {0:.3f} m/s".format(np.std(s.rv)*1.0e3)
     print "unweighted median RV RMS = {0:.3f} m/s".format(np.std(rv)*1.0e3)
 
     #try weighted means
-    rv_aweight = np.average(HIP54287.data[:,:,1], weights=abs(HIP54287.data[:,:,0]), axis=1) - HIP54287.drift*1e-3
-    rv_a2weight = np.average(HIP54287.data[:,:,1], weights=(HIP54287.data[:,:,0])**2, axis=1) - HIP54287.drift*1e-3
+    rv_aweight = np.average(Star.data[:,:,1], weights=abs(Star.data[:,:,0]), axis=1) - Star.drift*1e-3
+    rv_a2weight = np.average(Star.data[:,:,1], weights=(Star.data[:,:,0])**2, axis=1) - Star.drift*1e-3
     print "abs(a) weighted mean RV RMS = {0:.3f} m/s".format(np.std(rv_aweight)*1.0e3)
     print "a^2 weighted mean RV RMS = {0:.3f} m/s".format(np.std(rv_a2weight)*1.0e3)
         
     rv_aweightmed = []
-    for i in range(len(HIP54287.t)):
-        rv_aweightmed.append(weighted_median(HIP54287.data[i,:,1], ws=abs(HIP54287.data[i,:,0])))
-    #rv_aweightmed = np.apply_along_axis(weighted_median,1,HIP54287.data[:,:,1])
-    rv_aweightmed -= HIP54287.drift*1e-3 # apply the drift correction
+    for i in range(len(Star.t)):
+        rv_aweightmed.append(weighted_median(Star.data[i,:,1], ws=abs(Star.data[i,:,0])))
+    #rv_aweightmed = np.apply_along_axis(weighted_median,1,Star.data[:,:,1])
+    rv_aweightmed -= Star.drift*1e-3 # apply the drift correction
     print "abs(a) weighted median RV RMS = {0:.3f} m/s".format(np.std(rv_aweightmed)*1.0e3)
     
     #try refitting RVs with central CCF points excluded
-    rv_all = np.copy(HIP54287.data[:,:,1])
-    HIP54287.get_data(s.files, n_points=20, mask_inner=4)
-    rv_w = np.copy(HIP54287.data[:,:,1])  # RVs from CCF wings
-    HIP54287.get_data(s.files, n_points=4, mask_inner=0)
-    rv_c = np.copy(HIP54287.data[:,:,1])  # RVs from CCF centers
+    rv_all = np.copy(Star.data[:,:,1])
+    Star.get_data(s.files, n_points=20, mask_inner=4)
+    rv_w = np.copy(Star.data[:,:,1])  # RVs from CCF wings
+    Star.get_data(s.files, n_points=4, mask_inner=0)
+    rv_c = np.copy(Star.data[:,:,1])  # RVs from CCF centers
     rv_diff = (rv_w - rv_c)/2.0
     rv_avg = (rv_w + rv_c)/2.0
     colors = iter(cm.gist_rainbow(np.linspace(0, 1, 69)))    
@@ -109,10 +109,10 @@ if __name__ == "__main__":
     # multiple linear regression with central/outer CCF fits
     m = 47  # a high-amplitude CCF order
     v_m = rv_all[:,m] # time-series RVs for this order
-    N = len(HIP54287.t)
+    N = len(Star.t)
     n_pred = 2 # number of predictors, including intercept term
     A_m = np.ones((N,n_pred)) # design matrix for this order
-    #A_m[:,1:5] = HIP54287.wavepar[:,m,:]
+    #A_m[:,1:5] = Star.wavepar[:,m,:]
     A_m[:,1] = rv_diff[:,m]
     x_m = np.zeros((N,n_pred))
     l = 0.0  # regularization parameter
