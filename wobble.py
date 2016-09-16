@@ -12,6 +12,7 @@ import read_harps
 import rv_model
 from weighted_median import weighted_median
 from scipy.stats.stats import pearsonr
+import corner
 
 def plot_timeseries(time,rv,rv_err,rv2=0):
     '''Plot RV timeseries (probably delete this later)
@@ -55,6 +56,27 @@ def rv_oneline(wave_c,filenames):
         # fit the line
         rv_one[i] = read_harps.rv_oneline_fit(wave,spec,wave_c)
     return rv_one
+    
+def mask_val(w, mask_start, mask_end, mask_weight):
+    if (w >= mask_start).any():
+        ind = np.where(w >= mask_start)[0][-1]
+        if w <= mask_end[ind]:
+            return mask_weight[ind]
+        else:
+            return 0.0
+    else:
+        return 0.0
+        
+def read_spec(specfile):
+    sp = fits.open(spec_file)
+    header = sp[0].header
+    n_wave = header['NAXIS1']
+    crval1 = header['CRVAL1']
+    cdelt1 = header['CDELT1']
+    index = np.arange(n_wave)
+    wave = crval1 + index*cdelt1
+    flux = sp[0].data
+    return wave, flux
 
 if __name__ == "__main__":
     
@@ -73,6 +95,16 @@ if __name__ == "__main__":
     rv -= Star.drift*1e-3 # apply the drift correction
     print "pipeline's RV RMS = {0:.3f} m/s".format(np.std(s.rv)*1.0e3)
     print "unweighted median RV RMS = {0:.3f} m/s".format(np.std(rv)*1.0e3)
+    
+    corner_par = np.reshape(Star.data,(-1,4))
+    corner_par[:,0] /= -1.0e6
+    corner_par[:,3] /= 1.0e6
+    corner_labels = ['CCF depth (millions)','CCF mean',r'CCF $\sigma$','CCF y-offset (millions)']
+    corner.corner(corner_par,labels=corner_labels,plot_contours=False,title_kwargs={"fontsize": 12})
+    plt.savefig('fig/ccf_corner.png')
+    
+    
+    '''''
 
     #try weighted means
     rv_aweight = np.average(Star.data[:,:,1], weights=abs(Star.data[:,:,0]), axis=1) - Star.drift*1e-3
@@ -164,6 +196,22 @@ if __name__ == "__main__":
     plt.xlim([-0.04,0.02])
     plt.savefig('fig/regression_o{0}fit.png'.format(m))
     plt.clf()
+    
+    
+    '''''
+    plt.clf()
+    mask_start, mask_end, mask_weight = np.loadtxt('G2.mas',unpack=True)
+    
+    plt.xlim([6244.0,6248.0])
+    for i,f in enumerate([s.files[0],s.files[20]]):
+        # read in the spectrum
+        spec_file = str.replace(f, 'ccf_G2', 's1d')
+        wave, spec = read_spec(spec_file)
+        plt.scatter(wave,spec/np.percentile(spec,99))
+    mask = [mask_val(w, mask_start, mask_end, mask_weight) for w in wave]
+    plt.plot(wave, mask)
+    plt.show()
+    
     
     
 
