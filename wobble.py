@@ -67,21 +67,12 @@ def mask_val(w, mask_start, mask_end, mask_weight):
     else:
         return 0.0
         
-def read_spec(specfile):
-    sp = fits.open(spec_file)
-    header = sp[0].header
-    n_wave = header['NAXIS1']
-    crval1 = header['CRVAL1']
-    cdelt1 = header['CDELT1']
-    index = np.arange(n_wave)
-    wave = crval1 + index*cdelt1
-    flux = sp[0].data
-    return wave, flux
-
 if __name__ == "__main__":
     
     data_dir = "/Users/mbedell/Documents/Research/HARPSTwins/Results/"
     s = readsav(data_dir+'HIP22263_result.dat') 
+    
+    #s = read_harps.read_csv('data/HIP22263/HIP22263.csv')
  
     Star = rv_model.RV_Model()
     Star.t = s.date - s.date[0]  # timeseries epochs
@@ -96,6 +87,7 @@ if __name__ == "__main__":
     print "pipeline's RV RMS = {0:.3f} m/s".format(np.std(s.rv)*1.0e3)
     print "unweighted median RV RMS = {0:.3f} m/s".format(np.std(rv)*1.0e3)
     
+    '''''
     corner_par = np.reshape(Star.data,(-1,4))
     corner_par[:,0] /= -1.0e6
     corner_par[:,3] /= 1.0e6
@@ -104,7 +96,7 @@ if __name__ == "__main__":
     plt.savefig('fig/ccf_corner.png')
     
     
-    '''''
+
 
     #try weighted means
     rv_aweight = np.average(Star.data[:,:,1], weights=abs(Star.data[:,:,0]), axis=1) - Star.drift*1e-3
@@ -206,7 +198,7 @@ if __name__ == "__main__":
     for i,f in enumerate([s.files[0],s.files[20]]):
         # read in the spectrum
         spec_file = str.replace(f, 'ccf_G2', 's1d')
-        wave, spec = read_spec(spec_file)
+        wave, spec = read_harps.read_spec(spec_file)
         plt.scatter(wave,spec/np.percentile(spec,99))
     mask = [mask_val(w, mask_start, mask_end, mask_weight) for w in wave]
     plt.plot(wave, mask)

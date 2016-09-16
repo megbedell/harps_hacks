@@ -5,7 +5,53 @@ import matplotlib.gridspec as gridspec
 from astropy.io import fits
 from scipy.optimize import curve_fit
 import pdb
+import csv
 
+def read_csv(csv_file):
+    '''Read a CSV file with header in as dict
+    
+    Parameters
+    ----------
+    csv_file : string
+    name of the CSV file
+    
+    Returns
+    -------
+    data : dict
+    the contents of the CSV file in dictionary form
+    '''
+    with open(csv_file, 'r' ) as f:
+        reader = csv.DictReader(f)
+        data = {}
+        for row in reader:
+            for column, value in row.iteritems():
+                data.setdefault(column, []).append(value)
+    return data
+
+def read_spec(spec_file):
+    '''Read a HARPS 1D spectrum file from the ESO pipeline
+
+    Parameters
+    ----------
+    filename : string
+    name of the fits file with the data
+
+    Returns
+    -------
+    wave : np.ndarray
+    wavelength (in Angstroms)
+    flux : np.ndarray
+    flux value
+    '''
+    sp = fits.open(spec_file)
+    header = sp[0].header
+    n_wave = header['NAXIS1']
+    crval1 = header['CRVAL1']
+    cdelt1 = header['CDELT1']
+    index = np.arange(n_wave)
+    wave = crval1 + index*cdelt1
+    flux = sp[0].data
+    return wave, flux
 
 def read_ccfs(filename):
     '''Read a HARPS CCF file from the ESO pipeline
