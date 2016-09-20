@@ -98,3 +98,32 @@ Now we try taking the time series information of wavelength solution parameters 
 A_m with dimensions 5 by N_epochs. For a single order, we're treating the wavelength solution parameters as predictors that
 determine the response measurement RV, and implicitly assuming that it's a linear relationship. With some linear algebra
 magic, we can obtain a best-fit model of time-series RVs for a single echelle order.
+
+We use a ``leave-one-out'' regression technique, where at each epoch i the design matrix is constructed using all epochs
+except i, and RV_pred(i) is computed from that. If there is any predictive power in the wavelength solution coefficients, then
+(RV_pred - RV_obs) should have a lower RMS scatter than RV_obs alone. Unfortunately it does not!
+
+Some simple regularization was applied to the regression without success.
+
+We also tried doing the same experiment with an additional predictor added: the RV drift as computed by the simultaneous
+reference fiber. This should account for instrumental effects not included in the beginning-of-night wavelength solution.
+
+This code is in the main wobble.py module, commits 07/17-18/2016.
+
+CCF SHAPE
+
+Since the wavelength solution doesn't appear to contain predictive information, we turn to effects that may be due more to
+stellar activity. In principle the CCF should act as a diagnostic of the average spectral line profile, so we can use its
+shape and skewness as an indicator of stellar activity (as opposed to a true planet-induced Doppler shift, which does not
+distort the line profile). wobble can fit a Gaussian to different regions of the CCF using the n_points and mask_inner
+keywords of the Model.get_data and read_harps.rv_gaussian_fit functions. We used this capability to test the RVs measured by
+the cores and wings of the spectral lines.
+
+Some results: 
+- Excluding different numbers of points around the minimum of the CCF (while preserving the number of points used in the fit
+  overall) produces an RMS minimum when only two points are excluded.
+- Designate RV_w as the RV measured from fitting the CCF wings and RV_c the RV from fitting the CCF core. At first glance, the
+  difference (RV_w - RV_c) appears anti-correlated with the average of the two. However, doing a leave-one-out regression on
+  the two did not successfully predict RV.
+
+This code is in the main wobble.py module, commits 08/07-09/2016.
