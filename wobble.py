@@ -10,6 +10,7 @@ import astropy.time
 import datetime
 import read_harps
 import rv_model
+import xcorrelate
 from weighted_median import weighted_median
 from scipy.stats.stats import pearsonr
 import corner
@@ -192,7 +193,7 @@ if __name__ == "__main__":
     
     '''''
     plt.clf()
-    mask_start, mask_end, mask_weight = np.loadtxt('G2.mas',unpack=True)
+    G2mask = xcorrelate.Mask(file='data/G2.mas')
     
     plt.xlim([6244.0,6248.0])
     for i,f in enumerate([s.files[0],s.files[20]]):
@@ -200,7 +201,7 @@ if __name__ == "__main__":
         spec_file = str.replace(f, 'ccf_G2', 's1d')
         wave, spec = read_harps.read_spec(spec_file)
         plt.scatter(wave,spec/np.percentile(spec,99))
-    mask = [mask_val(w, mask_start, mask_end, mask_weight) for w in wave]
+    mask = [G2mask.value(w) for w in wave]
     plt.plot(wave, mask)
     plt.show()
     
