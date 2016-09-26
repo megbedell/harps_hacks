@@ -57,17 +57,7 @@ def rv_oneline(wave_c,filenames):
         # fit the line
         rv_one[i] = read_harps.rv_oneline_fit(wave,spec,wave_c)
     return rv_one
-    
-def mask_val(w, mask_start, mask_end, mask_weight):
-    if (w >= mask_start).any():
-        ind = np.where(w >= mask_start)[0][-1]
-        if w <= mask_end[ind]:
-            return mask_weight[ind]
-        else:
-            return 0.0
-    else:
-        return 0.0
-        
+     
 if __name__ == "__main__":
     
     data_dir = "/Users/mbedell/Documents/Research/HARPSTwins/Results/"
@@ -195,15 +185,29 @@ if __name__ == "__main__":
     plt.clf()
     G2mask = xcorrelate.Mask(file='data/G2.mas')
     
-    plt.xlim([6244.0,6248.0])
-    for i,f in enumerate([s.files[0],s.files[20]]):
+    
+    #plt.xlim([6245.9,6246.9])
+    for i,f in enumerate([s.files[0]]):
         # read in the spectrum
         spec_file = str.replace(f, 'ccf_G2', 's1d')
         wave, spec = read_harps.read_spec(spec_file)
-        plt.scatter(wave,spec/np.percentile(spec,99))
-    mask = [G2mask.value(w) for w in wave]
-    plt.plot(wave, mask)
+        spec /= np.percentile(spec,99)  # really dumb continuum normalization
+        #plt.scatter(wave,spec)
+    #mask = [G2mask.value(w) for w in wave]
+    #plt.plot(wave, mask)
+    #plt.show()
+    
+    
+    
+    test_ind = np.where((wave > 6245.9) & (wave < 6246.9))
+    velocity = np.arange(21.5,22.5,0.01)
+    ccf_test = xcorrelate.ccf(wave[test_ind], spec[test_ind], G2mask, velocity)
+    
+    plt.plot(velocity,ccf_test)
+    plt.xlabel('RV (km/s)')
+    plt.ylabel('CCF value')
     plt.show()
+    
     
     
     

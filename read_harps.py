@@ -48,7 +48,7 @@ def read_spec(spec_file):
     n_wave = header['NAXIS1']
     crval1 = header['CRVAL1']
     cdelt1 = header['CDELT1']
-    index = np.arange(n_wave)
+    index = np.arange(n_wave, dtype=np.float64)
     wave = crval1 + index*cdelt1
     flux = sp[0].data
     return wave, flux
