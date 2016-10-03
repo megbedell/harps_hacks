@@ -199,14 +199,15 @@ if __name__ == "__main__":
     
     
     
-    test_ind = np.where((wave > 6245.9) & (wave < 6246.9))
-    velocity = np.arange(21.5,22.5,0.01)
+    #test_ind = np.where((wave > 6245.9) & (wave < 6246.9))
+    test_ind = np.where((wave > 4950.0) & (wave < 5000.0))  # order ind = 38
+    velocity = np.arange(10.0,35.0,0.1)
     ccf_test = xcorrelate.ccf(wave[test_ind], spec[test_ind], G2mask, velocity)
     
     plt.plot(velocity,ccf_test)
     plt.xlabel('RV (km/s)')
     plt.ylabel('CCF value')
-    plt.show()
+    plt.savefig('fig/ccf.png')
     
     
     
