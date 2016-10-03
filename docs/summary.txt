@@ -1,0 +1,129 @@
+WOBBLE
+
+developed by:
+Megan Bedell (mbedell@oddjob.uchicago.edu)
+David Hogg (david.hogg@nyu.edu)
+
+This document is a record of experiments I have tried while developing the code.
+
+BACKGROUND
+
+The goal of wobble is to derive precise radial velocities from HARPS data. The HARPS data reduction software (DRS)
+automatically produces RVs which are derived by cross-correlation of the stellar spectrum with a binary mask. Each echelle
+order has its own cross-correlation function (CCF), and the CCFs are co-added and fit with a Gaussian to produce a final RV.
+It's not immediately obvious that this is the optimal way to get RVs, so I am experimenting with other methods. Additionally,
+the HARPS DRS is proprietary and somewhat black-box in function, and an open-source alternative pipeline would be of great
+value to near-future RV instruments.
+
+Here is a summary of the data products returned by the HARPS pipeline for a single observation: 
+- a CCF fits file: 161 x 73 array containing the cross-correlation functions for each of the 72 echelle orders, plus a
+co-added CCF of all orders (apparently excluding the first order for unknown reasons). Order indices 57, 66, and 71 are blank. 
+- an S1D fits file: 1-dimensional extracted spectrum which has been corrected for barycentric motion and rebinned to 0.1 Ang
+steps. 
+- an E2DS fits file: 4096 x 72 array containing the extracted order-by-order spectrum. 
+- header information: Within the header of each FITS file is a lot more information, including wavelength solution
+coefficients, spectral extraction parameters, order SNRs, barycentric correction values, and the RV drift solution from the
+simultaneous reference source (if applicable). 
+Also returned are flatfield, blaze, wavelength solution, and localization FITS frames (one per nightly calibration).
+
+Some useful links to documentation:
+https://www.eso.org/sci/facilities/lasilla/instruments/harps/doc/DRS.pdf
+https://www.eso.org/sci/facilities/lasilla/instruments/harps/doc/manual/userman2_1.pdf
+
+RE-FITTING CCFS
+
+The first thing we tried was playing around with the extraction of RV values from the DRS-returned CCFs. The DRS fits a single
+Gaussian to the co-added CCF, using all 161 points in the fit (which includes a considerable amount of ``continuum''). I tried
+fitting Gaussians to each order's CCF and to the co-added CCF using varying numbers of points. Plotting the resulting standard
+deviation among a time series of 48 measurements of an RV-quiet star as a function of how many points were used in the
+Gaussian fit showed that using 20 points on either side of the minimum gives the lowest RV dispersion, so this was adopted for
+all subsequent Gaussian fits to the CCFs. The Gaussian fit yields the following parameters for each CCF: amplitude, mean,
+FWHM, and y-offset. The mean is taken as the RV, and the other parameters may be used in estimating the uncertainty of the RV.
+
+We also tried doing a simple parabolic interpolation rather than a Gaussian fit. This gave worse results in terms of RV
+dispersion regardless of how many CCF points were used in the fit.
+
+The code to do these fitting experiments is currently located in read_harps.rv_parabola_fit, read_harps.rv_gaussian_fit.
+
+COMBINING ORDERS
+
+Some simple alternatives to adopting the RV of the co-added CCF are taking a (weighted or unweighted) mean or median of the
+RVs for each echelle order. We tested these methods using the standard deviation of RVs for a time series of RV-quiet star
+observations as a quality metric, as before. The results indicate that weighting by abs(amplitude of the Gaussian) works best,
+followed by weighting by amplitude**2, and both work better than non-weighted statistics. However, using the co-added CCF
+still performs marginally better than any other method we tried!
+
+PCA/SVD
+
+The general idea here is to treat each order's RV measurement as a separate time series and look for trends in this N_epoch x
+69 order matrix of data. We tried implementing a simple singular value decomposition (SVD) algorithm on the order-by-order
+RVs. We also tried a multi-parameter analysis on all other Gaussian CCF fit parameters excluding the RV (scaled by the 
+variance of the parameter).
+
+This code is in the main wobble.py module, commits c. 05/26/2016.
+
+OBSERVING CONDITIONS
+
+This is a really simple/dumb test, but let's see if there are any correlations between the pipeline-derived RVs and various
+measurements of observing conditions. We read airmass, SNR,* and seeing from the FITS headers and looked at Pearson
+correlation coefficients with pipeline RV. Results: there is no relationship between RV and airmass, but there does appear to
+be an anti-correlation between RV and SNR! Seeing was not measured on enough nights to get a robust result.
+
+We also tried folding the RVs on a sidereal day period to check for potential issues with the barycentric correction, but that
+seems fine.
+
+This code is in the main wobble.py module, commit on 06/15/2016.
+
+* Note on the SNR: The pipeline actually delivers one SNR measurement per order per epoch. The SNR used here is the median
+  across orders.
+
+WAVELENGTH SOLUTION
+
+Assuming that some part of the RV ``jitter'' in the time series is due to instrumental effects and not a real shift in the
+stellar spectrum, the wavelength solution's behaviour in time should play an important role. The solution is printed in the
+pipeline-produced FITS headers in the form of keywords that give polynomial coefficients for the wave(pixel_x, order#) fit.
+The polynomial has a degree given by keyword ``CAL TH DEG LL'' (= 3 for all of the files I checked). Note that this solution is
+set by the beginning-of-night calibrations and does not include any secondary adjustments from the simultaneous reference lamp.
+
+Some observations: 
+- The coefficients of the wavelength solution are strongly dependent on each other, e.g. the 0th and 1st
+polynomial order coefficients are very very correlated. This makes sense because instrument resolution is a fixed quantity,
+but the fact that the 2nd and 3rd polynomial order coefficients are anti-correlated with 0th order is less obvious to me.
+- There is a correlation between pipeline RV and the 0th polynomial coefficient of the wavelength solution. Is this a
+barycentric shift effect? Probably not, if pipeline RVs were properly corrected.
+
+MULTIPLE REGRESSION ON WAVELENGTH SOLUTIONS
+
+Now we try taking the time series information of wavelength solution parameters for each echelle order m as a design matrix
+A_m with dimensions 5 by N_epochs. For a single order, we're treating the wavelength solution parameters as predictors that
+determine the response measurement RV, and implicitly assuming that it's a linear relationship. With some linear algebra
+magic, we can obtain a best-fit model of time-series RVs for a single echelle order.
+
+We use a ``leave-one-out'' regression technique, where at each epoch i the design matrix is constructed using all epochs
+except i, and RV_pred(i) is computed from that. If there is any predictive power in the wavelength solution coefficients, then
+(RV_pred - RV_obs) should have a lower RMS scatter than RV_obs alone. Unfortunately it does not!
+
+Some simple regularization was applied to the regression without success.
+
+We also tried doing the same experiment with an additional predictor added: the RV drift as computed by the simultaneous
+reference fiber. This should account for instrumental effects not included in the beginning-of-night wavelength solution.
+
+This code is in the main wobble.py module, commits 07/17-18/2016.
+
+CCF SHAPE
+
+Since the wavelength solution doesn't appear to contain predictive information, we turn to effects that may be due more to
+stellar activity. In principle the CCF should act as a diagnostic of the average spectral line profile, so we can use its
+shape and skewness as an indicator of stellar activity (as opposed to a true planet-induced Doppler shift, which does not
+distort the line profile). wobble can fit a Gaussian to different regions of the CCF using the n_points and mask_inner
+keywords of the Model.get_data and read_harps.rv_gaussian_fit functions. We used this capability to test the RVs measured by
+the cores and wings of the spectral lines.
+
+Some results: 
+- Excluding different numbers of points around the minimum of the CCF (while preserving the number of points used in the fit
+  overall) produces an RMS minimum when only two points are excluded.
+- Designate RV_w as the RV measured from fitting the CCF wings and RV_c the RV from fitting the CCF core. At first glance, the
+  difference (RV_w - RV_c) appears anti-correlated with the average of the two. However, doing a leave-one-out regression on
+  the two did not successfully predict RV.
+
+This code is in the main wobble.py module, commits 08/07-09/2016.
