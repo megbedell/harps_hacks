@@ -185,29 +185,55 @@ if __name__ == "__main__":
     plt.clf()
     G2mask = xcorrelate.Mask(file='data/G2.mas')
     
+    # testing continuum normalization:
+
     
     #plt.xlim([6245.9,6246.9])
-    for i,f in enumerate([s.files[0]]):
+    for i,f in enumerate(s.files[0:2]):
         # read in the spectrum
         spec_file = str.replace(f, 'ccf_G2', 's1d')
         wave, spec = read_harps.read_spec(spec_file)
-        spec /= np.percentile(spec,99)  # really dumb continuum normalization
-        #plt.scatter(wave,spec)
+        #spec /= np.percentile(spec,99)  # really dumb continuum normalization
+        plt.plot(wave,spec)
+        plt.xlim([4900.0,5000.0])
+    plt.show()
+    plt.clf()
+    
+    fig = plt.figure()
+    wave1, spec1 = read_harps.read_spec(str.replace(s.files[110], 'ccf_G2', 's1d'))
+    wave2, spec2 = read_harps.read_spec(str.replace(s.files[17], 'ccf_G2', 's1d'))
+    wave = np.arange(np.max([wave1[0],wave2[0]]),np.min([wave1[-1],wave2[-1]]),0.01)
+    spec1 = np.interp(wave, wave1, spec1)
+    spec2 = np.interp(wave, wave2, spec2)
+
+    ax1 = fig.add_subplot(2,1,1)
+    ax1.plot(wave,spec1)
+    ax1.plot(wave,spec2)
+    ax1.set_xlim([4900.0,5000.0])
+    ax1.set_ylim([0,25000])
+    #ax.set_xticklabels( () )
+    ax2 = fig.add_subplot(2,1,2, sharex=ax1)
+    ax2.plot(wave, spec1/spec2)
+    ax2.set_xlim([4900.0,5000.0])
+    ax2.set_ylim([0.68,0.8])
+    fig.subplots_adjust(hspace=0.05)
+    plt.show()
+    
+    
     #mask = [G2mask.value(w) for w in wave]
     #plt.plot(wave, mask)
     #plt.show()
     
-    
-    
+
     #test_ind = np.where((wave > 6245.9) & (wave < 6246.9))
-    test_ind = np.where((wave > 4950.0) & (wave < 5000.0))  # order ind = 38
-    velocity = np.arange(10.0,35.0,0.1)
-    ccf_test = xcorrelate.ccf(wave[test_ind], spec[test_ind], G2mask, velocity)
+    #test_ind = np.where((wave > 4950.0) & (wave < 5000.0))  # order ind = 38
+    #velocity = np.arange(10.0,35.0,0.1)
+    #ccf_test = xcorrelate.ccf(wave[test_ind], spec[test_ind], G2mask, velocity)
     
-    plt.plot(velocity,ccf_test)
-    plt.xlabel('RV (km/s)')
-    plt.ylabel('CCF value')
-    plt.savefig('fig/ccf.png')
+    #plt.plot(velocity,ccf_test)
+    #plt.xlabel('RV (km/s)')
+    #plt.ylabel('CCF value')
+    #plt.savefig('fig/ccf.png')
     
     
     

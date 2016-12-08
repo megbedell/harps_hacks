@@ -6,6 +6,7 @@ from astropy.io import fits
 from scipy.optimize import curve_fit
 import pdb
 import csv
+c = 299792.458 # speed of light in km/s
 
 def read_csv(csv_file):
     '''Read a CSV file with header in as dict
@@ -33,9 +34,9 @@ def read_spec(spec_file):
 
     Parameters
     ----------
-    filename : string
-    name of the fits file with the data
-
+    spec_file : string
+    name of the fits file with the data (s1d format)
+    
     Returns
     -------
     wave : np.ndarray
@@ -52,6 +53,49 @@ def read_spec(spec_file):
     wave = crval1 + index*cdelt1
     flux = sp[0].data
     return wave, flux
+    
+def read_spec_2d(spec_file, blaze=False, flat=False):
+    '''Read a HARPS 2D spectrum file from the ESO pipeline
+
+    Parameters
+    ----------
+    spec_file : string
+    name of the fits file with the data (e2ds format)
+    blaze : boolean
+    if True, then divide out the blaze function from flux
+    flat : boolean
+    if True, then divide out the flatfield from flux
+    
+    Returns
+    -------
+    wave : np.ndarray (shape n_orders x 4096)
+    wavelength (in Angstroms)
+    flux : np.ndarray (shape n_orders x 4096)
+    flux value 
+    '''
+    path = spec_file[0:str.rfind(spec_file,'/')+1]
+    sp = fits.open(spec_file)
+    header = sp[0].header
+    flux = sp[0].data
+    wave_file = header['HIERARCH ESO DRS CAL TH FILE']
+    try:
+        ww = fits.open(path+wave_file)
+        wave = ww[0].data
+    except:
+        print "Wavelength solution file {0} not found!".format(wave_file)
+        return
+    if blaze:
+        blaze_file = header['HIERARCH ESO DRS BLAZE FILE']
+        bl = fits.open(path+blaze_file)
+        blaze = bl[0].data
+        flux /= blaze
+    if flat:
+        flat_file = header['HIERARCH ESO DRS CAL FLAT FILE']
+        fl = fits.open(path+flat_file)
+        flat = fl[0].data
+        flux /= flat
+    return wave, flux
+    
 
 def read_ccfs(filename):
     '''Read a HARPS CCF file from the ESO pipeline
@@ -90,8 +134,8 @@ def read_ccfs(filename):
     # get the header RV
     rv = header['HIERARCH ESO DRS CCF RV']
         
-    return velocity, ccf, rv
-    
+    return velocity, ccf, rv    
+
 def read_wavepar(filename):
     '''Parse wavelength solution on a HARPS file from the ESO pipeline
 
@@ -114,6 +158,7 @@ def read_wavepar(filename):
     for i in np.nditer(wavepar, op_flags=['readwrite']):
         i[...] = header['HIERARCH ESO DRS CAL TH COEFF LL{0}'.format(str(int(i)))]
     return wavepar
+
 
 def read_snr(filename):
     '''Parse SNR from header of a HARPS file from the ESO pipeline
@@ -138,6 +183,7 @@ def read_snr(filename):
         i[...] = header['HIERARCH ESO DRS SPE EXT SN{0}'.format(str(int(i)))]
     return snr
 
+
 def read_drift(filename):
     '''Parse simultaneous reference drift from header of a HARPS file from the ESO pipeline
 
@@ -156,9 +202,11 @@ def read_drift(filename):
     return drift  # to do: fix so this works for data not in simultaneous ref mode
        
 
+
 def gauss_function(x, a, x0, sigma, offset):
     '''it's a Gaussian.'''
     return a*np.exp(-(x-x0)**2/(2*sigma**2)) + offset
+
 
 def parabola_min(x, y):
     '''Take three data points (x,y), fit a parabola, and return the minimum
@@ -178,6 +226,7 @@ def parabola_min(x, y):
     x_min = -b/(2.0*a)
     return x_min
     
+
 
 def plot_ccfs(velocity, ccf, pipeline_rv, custom_rvs, file_out='all_ccfs.png', calc_sum=False):
     '''Make a multipanel plot of all CCFs, order-by-order
@@ -253,8 +302,6 @@ def plot_ccfs(velocity, ccf, pipeline_rv, custom_rvs, file_out='all_ccfs.png', c
     
     fig.savefig(file_out, dpi=400)
 
-
-
 def rv_parabola_fit(velocity, ccf):
     '''Read in the pipeline CCF data product and return polynomial-fitted RV for each order
     
@@ -281,6 +328,7 @@ def rv_parabola_fit(velocity, ccf):
         order_rvs[i] = parabola_min(x,y)  # find the RV minimum using parabolic interpolation
     return order_rvs
     
+
 def rv_gaussian_fit(velocity, ccf, n_points=20, mask_inner=0, debug=False, all=False):
     '''Read in the pipeline CCF data product and return Gaussian-fitted RV for each order
     
