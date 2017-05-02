@@ -95,7 +95,7 @@ def doppler(wave, velocity):
     wave = wave/(1.0 + velocity/c)
     return wave
 
-def ccf(wave, flux, mask, velocity):
+def ccf(wave, flux, mask, velocity, pix_size=0.01):
     '''
     Get a cross-correlation function from a piece of spectrum.
     Parameters
@@ -118,7 +118,7 @@ def ccf(wave, flux, mask, velocity):
     #colors = iter(cm.gist_rainbow(np.linspace(0, 1, len(velocity))))
     for i,v in enumerate(velocity):
         wave_v = doppler(wave, v)  # shift mask wavelength range
-        ccf[i] = np.sum(flux * mask.pix_values(wave_v))
+        ccf[i] = np.sum(flux * mask.pix_values(wave_v, pix_size=pix_size))
         #color=next(colors)
         #plt.plot(wave, mask.construct(wave_v), color=color)
         #plt.plot(wave, flux*mask.pix_values(wave_v), color=color, ls='--')   
