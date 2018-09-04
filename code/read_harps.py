@@ -78,11 +78,13 @@ def read_spec_2d(spec_file, blaze=False, flat=False):
     header = sp[0].header
     flux = sp[0].data
     wave_file = header['HIERARCH ESO DRS CAL TH FILE']
+    wave_file = str.replace(wave_file, 'e2ds', 'wave') # just in case of header mistake..
+                                                       # ex. HARPS.2013-03-13T09:20:00.346_ccf_M2_A.fits
     try:
         ww = fits.open(path+wave_file)
         wave = ww[0].data
     except:
-        print "Wavelength solution file {0} not found!".format(wave_file)
+        print("Wavelength solution file {0} not found!".format(wave_file))
         return
     if blaze:
         blaze_file = header['HIERARCH ESO DRS BLAZE FILE']
@@ -354,7 +356,7 @@ def rv_gaussian_fit(velocity, ccf, n_points=20, mask_inner=0, debug=False, all=F
     best-fit Gaussian parameters for each order: (amplitude, mean, sigma, offset)
     '''
     if (n_points < 1):
-        print "Cannot fit a Gaussian to < 4 points! Try n_points = 2"
+        print("Cannot fit a Gaussian to < 4 points! Try n_points = 2")
         return None
     order_par = np.zeros((ccf.shape[0],4))
     for i,order in enumerate(ccf):
@@ -364,18 +366,18 @@ def rv_gaussian_fit(velocity, ccf, n_points=20, mask_inner=0, debug=False, all=F
         ind_min = np.argmin(order)
         ind_range = np.arange(n_points*2+1) + ind_min - n_points
         if (ind_range > 160).any() or (ind_range < 0).any():
-            print "n_points too large, defaulting to all"
+            print("n_points too large, defaulting to all")
             ind_range = np.arange(161)
         ind_range = np.delete(ind_range, np.where(np.abs(ind_range - ind_min) < mask_inner))
         height = max(order) - min(order)
         p0 = [-height, velocity[i,ind_min], 3.0, max(order)]
         if debug:
-            print "order index {0}".format(i)
-            print "starting param",p0
+            print("order index {0}".format(i))
+            print("starting param",p0)
         popt, pcov = curve_fit(gauss_function, velocity[i,ind_range], order[ind_range], p0=p0, maxfev=10000)
         order_par[i,:] = popt
         if debug:
-            print "solution param",popt
+            print("solution param",popt)
             plt.scatter(velocity[i],order,color='blue')
             plt.scatter(velocity[i,ind_range],order[ind_range],color='red')
             x = np.arange(10000)/100.0 + velocity[i,0]
@@ -419,7 +421,7 @@ def rv_oneline_fit(wave, spec, wave_c, debug=False):
     c = 299792.458 # km/s
     rv = (wave_obs - wave_c)/wave_c * c
     if debug:
-        print "solution param",popt
+        print("solution param",popt)
         plt.scatter(wave,spec)
         x = np.arange(10000)/3000.0 + wave[0]
         plt.plot(x, gauss_function(x,popt[0],popt[1],popt[2],popt[3]))
